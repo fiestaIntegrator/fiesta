@@ -1,7 +1,7 @@
 ############# MathLink related paths and settings begin: ####################
 #### Specify here the fulll path to the Mathematica MathLink Developer Kit:
 #MLINKDIR = /home/MDK
-MLINKDIR = /export/local/Wolfram/Mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
+MLINKDIR = /usr/local/Wolfram/Mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
 #MLINKDIR = /export/pc/mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
 
 #### Specify the system SYS and the library name MLIB. 
@@ -21,8 +21,8 @@ MLIB = -lML64i3
 ############# CUBA related paths and settings begin: ####################
 #Set this two varables to full paths to "cuba.h" and to the CUBAL library
 #file. If you have CUBA installed in your system, leave this variables empty:
-CUBAINCLUDEDIR = -I/x1/asmirnov/Cuba64
-CUBALIBDIR = -L/x1/asmirnov/Cuba64
+CUBAINCLUDEDIR = -I/x1/asmirnov/Cuba32
+CUBAILIBDIR = -L/x1/asmirnov/Cuba32
 
 #CUBAINCLUDEDIR = -I/cygdrive/d/Cuba/
 #CUBALIBDIR = -L/cygdrive/d/Cuba/
@@ -31,8 +31,8 @@ CUBALIBDIR = -L/x1/asmirnov/Cuba64
 ############# MPFR related paths and settings begin: ####################
 #Set this two varables to full paths to "cuba.h" and to the mpfr library
 #file. If you have mpfr installed in your system, leave this variables empty:
-MPFRINCLUDEDIR = -I/x1/asmirnov/mpfr64/src
-MPFRLIBDIR = -L/x1/asmirnov/mpfr64/src/.libs
+MPFRINCLUDEDIR = -I/x1/asmirnov/mpfr32
+MPFRLIBDIR = -L/x1/asmirnov/mpfr32/.libs
 # ATTENTION! Here we assume that the GMP library is installed on the system.
 # If you have non-standard GMP installation, edit the file  ./mpfr/Makefile and 
 # add -I<path_to_gmp_includes> to  INCDIR and -L<path_to_gmp_libraries> to LIBDIRS
@@ -61,7 +61,7 @@ LIBS = -pthread  -lcuba  -Wl,-Bstatic ${MLIB} -lstdc++ -Wl,-Bdynamic -lrt -lm
 #MPFRLINKAGE = -lmpfr -lgmp
 #LIBS = -pthread  -lcuba  ${MLIB} -lstdc++ -lrt -lm
 
-LIBDIRS = ${LIBCSTATICDIR} ${CUBALIBDIR}
+LIBDIRS = ${LIBCSTATICDIR} ${CUBAILIBDIR}
 ############# gcc related paths and settings end. ####################
 
 CFLAGS= -O3 -Wall -Wno-char-subscripts
@@ -81,7 +81,7 @@ MPREP = ${CADDSDIR}/mprep
 ifeq ($(SYS),Windows)
 CADDSDIR = ${MLINKDIR}/${SYS}/CompilerAdditions/cygwin
 INCDIR = -I${CADDSDIR}/include ${CUBAINCLUDEDIR}
-MLIBDIR = -L${CADDSDIR}/lib
+MLIBDIR = ${CADDSDIR}/lib
 MPREP = ${CADDSDIR}/bin/mprep.exe
 endif
 

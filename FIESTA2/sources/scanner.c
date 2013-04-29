@@ -76,7 +76,7 @@ runExpr(), file runline.c
 #include <errno.h>
 #include <string.h>
 
-#define NO_MATH 1
+//#define NO_MATH 1
 
 #ifndef NO_MATH
 #include <mathlink.h>
@@ -2097,7 +2097,7 @@ SC_INT cpos=checkTrie(str,&(theScan->newConstantsTrie));
 #ifndef NO_MATH
    if(cpos<0){
       char buf[128];
-      sprintf(buf,"N[%s,4096]",str);
+      sprintf(buf,"\\\"N[%s,4096]\\\"",str);
       theAnswer=evaluateString(buf);
       if(theAnswer==NULL){
          halt(16," Can't evaluate '%s'\n",buf);
@@ -2170,28 +2170,39 @@ static SC_INLINE char scanPolyGamma(scan_t *theScan)
    i=l=0;
    if(nextChar(theScan)!=O_B){parseError("'"O_B_S"' expected");return '\0';}
    if(parseInt(&i,theScan)!=','){parseError("',' expected");return '\0';}
-   if(parseInt(&l,theScan)!=C_B){parseError("'"C_B_S"' expected");return '\0';}
-   /*now in i and l we have a weight*/
+   c=parseInt(&l,theScan);
+   if (c=='/') {
+	int l2=0;
+	if(parseInt(&l2,theScan)!=C_B){parseError("'"C_B_S"' expected");return '\0';}
+	sprintf(polyGamma,"PolyGamma[%d,%d/%d]",i,l,l2);
+	cpos=evaluateConstant(polyGamma,theScan);
+   } 
+	else
+   {
 
-   sprintf(polyGamma,"PolyGamma[%d,%d]",i,l);
 
-   if( (i==1)&&(l==1) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA1_1,1,theScan);
-   else if( (i==2)&&(l==1) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_1,1,theScan);
-   else if( (i==2)&&(l==2) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_2,1,theScan);
-   else if( (i==2)&&(l==3) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_3,1,theScan);
-   else if( (i==2)&&(l==4) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_4,1,theScan);
-   else if( (i==3)&&(l==1) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA3_1,1,theScan);
-   else if( (i==3)&&(l==2) )
-      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA3_2,1,theScan);
-   else
-      cpos=evaluateConstant(polyGamma,theScan);
+   	if(c!=C_B){parseError("'"C_B_S"' expected");return '\0';}
+	   /*now in i and l we have a weight*/
 
+	   sprintf(polyGamma,"PolyGamma[%d,%d]",i,l);
+
+	   if( (i==1)&&(l==1) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA1_1,1,theScan);
+	   else if( (i==2)&&(l==1) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_1,1,theScan);
+	   else if( (i==2)&&(l==2) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_2,1,theScan);
+	   else if( (i==2)&&(l==3) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_3,1,theScan);
+	   else if( (i==2)&&(l==4) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_4,1,theScan);
+	   else if( (i==3)&&(l==1) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA3_1,1,theScan);
+	   else if( (i==3)&&(l==2) )
+	      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA3_2,1,theScan);
+	   else
+	      cpos=evaluateConstant(polyGamma,theScan);
+	}
    if(cpos<0){
       halt(16,"Parse error: can't evaluate %s\n",polyGamma);
       return '\0';
@@ -2295,6 +2306,18 @@ static SC_INLINE char scanTerm(int iniOp,
               }
               c=nextChar(theScan);
               break;
+	    case 'G': {
+                 SC_INT cpos=tAndSConst("G",STR_CONST_EulerGamma,1,theScan);
+                 if(cpos<0){
+                    parseError("Can't evaluate EulerGamma");
+                    return '\0';
+                 }
+                 diad[dCounter].theType='c';
+                 MK_DLINK(D_C);
+                 addInt(theScan->pstack,MK_FLOAT(cpos));
+	              c=nextChar(theScan);
+                 break;
+		}
             case 'P':
               /*Either P, or PolyGamma, or Power*/
               c=nextChar(theScan);
@@ -2469,14 +2492,22 @@ int n,neg=0;
 
 #ifdef MIXED_ARITHMETIC
                     addInt(theScan->pstack,MK_FLOAT(theScan->fNativeLine->fill));
-                    addNativeFloat(theScan->fNativeLine,r);
+	            addNativeFloat(theScan->fNativeLine,r);
                     addNativeFloat(theScan->fNativeLine,1.0l/r);
                     {/*Block*/
                        char buf[MAX_FLOAT_LENGTH];
-                       sprintf(buf,"%d.%d",n,n2);
+                       if(neg<0) sprintf(buf,"-%d.%d",n,n2); else sprintf(buf,"%d.%d",n,n2);
                        if(pushConst(buf,1,theScan))
                           return '\0';
                     }/*Block*/
+
+                 if((xVar>0) && (r<0)){
+                    if (theScan->maxX[xVar] == 0)
+                        theScan->maxX[0]++;
+                    if (theScan->maxX[xVar] < ceil(-r))
+                        theScan->maxX[xVar]= ceil(-r);
+                 }/*if(xVar>0)*/
+	
 #else
                     addInt(theScan->pstack,MK_FLOAT(theScan->fline->fill));
                     addFloat(theScan->fline,r);
@@ -2486,6 +2517,47 @@ int n,neg=0;
                     return c;
                  }/*if(n2!=0)*/
               }/*if(c == '.')*/
+
+              if(c == '/'){
+                 int n2=0;
+                 int e;
+                 c=parseInt2(&e,&n2,theScan);
+                 if(n2!=0){/*Fractional part present*/
+                    FLOAT r=(FLOAT)n/(FLOAT)n2;
+                    if(neg<0)
+                       r*=-1.0;
+
+#ifdef MIXED_ARITHMETIC
+                    addInt(theScan->pstack,MK_FLOAT(theScan->fNativeLine->fill));
+	            addNativeFloat(theScan->fNativeLine,r);
+                    addNativeFloat(theScan->fNativeLine,1.0l/r);
+                    {/*Block*/
+                       char buf[MAX_FLOAT_LENGTH];
+                       if(neg<0) sprintf(buf,"-%d/%d",n,n2); else sprintf(buf,"%d/%d",n,n2);
+//sprintf(buf,"2.5");
+		//	evaluateConstant(buf,theScan);
+                       if(pushConst(buf,1,theScan))
+                          return '\0';
+                    }/*Block*/
+
+                 if((xVar>0) && (r<0)){
+                    if (theScan->maxX[xVar] == 0)
+                        theScan->maxX[0]++;
+                    if (theScan->maxX[xVar] < ceil(-r))
+                        theScan->maxX[xVar]= ceil(-r);
+                 }/*if(xVar>0)*/
+
+#else
+                    addInt(theScan->pstack,MK_FLOAT(theScan->fline->fill));
+                    addFloat(theScan->fline,r);
+#endif
+                    if(addOp(OP_POW ,theScan))
+                       return 0;
+                    return c;
+                 }/*if(n2!=0)*/
+              }/*if(c == '.')*/
+
+
               /*Integer power!*/
               if(n==0){
                  /*a^0=1, so pop one element and put 1:*/

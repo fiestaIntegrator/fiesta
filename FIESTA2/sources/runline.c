@@ -27,7 +27,7 @@ invokes the interpreter runline().
 #include <math.h>
 
 /*#define DEBUG 1*/
-/*#define DEBUG_PREC 1*/
+#define DEBUG_PREC 1
 
 #if ARITHMETIC != NATIVE
 static INTERNAL_FLOAT *l_one;
@@ -673,6 +673,17 @@ static RL_INLINE void resetConstants(scan_t *theScan)
    for(j=i=0; i <theScan->fNativeLine->fill; i++){
       char *str=(char*) (theScan->newConstantsPool.pool + theScan->constStrings->buf[i]);
 #if ARITHMETIC == MPFR
+      char *pos=str;
+	while ((*pos!='/') && (*pos!='\0') && (pos-str<10)) ++pos;
+	if (*pos=='/') {
+		++pos;
+		mpfr_t nom,denom;
+		mpfr_init(nom);
+		mpfr_init(denom);
+		mpfr_set_str(nom,str,10,GMP_RNDN);
+		mpfr_set_str(denom,pos,10,GMP_RNDN);			
+		mpfr_div(theScan->fline->buf[j++],nom,denom,GMP_RNDN);
+	} else
       mpfr_set_str(theScan->fline->buf[j++],str,10,GMP_RNDN);
 #endif
       if(theScan->constStrings->buf[i+1] == -1){
@@ -712,6 +723,8 @@ static int l_default_precision_mem=0;;
    x--;/*The patch, for historical reasons the rest of the function 
          assumes that the array indices are started from 1, not 0*/
    useNativeArithmetic=isArithmeticNative(x,theScan);
+//useNativeArithmetic=1;
+//useNativeArithmetic=0;   //TO BE REMOVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    /*copy x to the scratch:*/
    if(useNativeArithmetic)
       memcpy(theScan->nativeX+1,x+1,sizeof(FLOAT)*(theScan->nx - 1));
@@ -788,6 +801,20 @@ static int l_default_precision_mem=0;;
          l_one=theScan->fline->buf+1;
          res=runline(&theScan->rtTriad,&a);
       }
+/*
+if (res==res)
+{
+	return res;
+}
+else
+{
+fprintf(stderr,"%f\n",x[1]);
+fprintf(stderr,"%f\n",x[2]);
+fprintf(stderr,"%f\n",x[3]);
+fprintf(stderr,"%f\n",x[4]);
+	return res;
+}
+*/
    return res;
 }/*runExpr*/
 

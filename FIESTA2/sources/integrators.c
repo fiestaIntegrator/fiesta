@@ -303,6 +303,42 @@ int getAllPars(int nIntegrator, char *result)
    return 0;
 }/*getAllPars*/
 
+static int justEvaluate(result_t *result) {
+double xx[10];
+float res;
+/*xx[0]=1;
+xx[1]=1;
+xx[2]=0.000000000000;
+xx[3]=1;
+xx[4]=1;
+xx[5]=1;   */ 
+
+xx[0]=0.000;
+xx[1]=1;
+xx[2]=1;
+xx[3]=1;
+/*
+xx[1]=1;
+xx[2]=1; 
+xx[3]=1;
+xx[4]=1;
+xx[5]=1;
+xx[6]=1;
+xx[7]=1;
+xx[8]=1;*/
+
+res=runExpr((double*)xx,g_fscan);
+result->s1=res;
+result->s2=1;
+return 1;
+};
+
+static paramsArrayStruct_t justEvaluateParameters[]={
+  {NULL,NULL,NULL}  
+};
+
+
+
 int initIntegrators(void)
 {
    if(g_topIntegrator>0)
@@ -318,6 +354,8 @@ int initIntegrators(void)
    if(registerIntegrator(&divonneCuba,"divonneCuba",divonneCubaParameters))
       return -1;
    if(registerIntegrator(&cuhreCuba,"cuhreCuba",cuhreCubaParameters))
+      return -1;
+   if(registerIntegrator(&justEvaluate,"justEvaluate",justEvaluateParameters))
       return -1;
    return 0;
 }/*initIntegrators*/

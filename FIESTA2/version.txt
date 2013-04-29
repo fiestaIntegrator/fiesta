@@ -1,9 +1,7 @@
-Version 2.4:
+Version 2.5:
 
 comes with a new package of sources and binaries
 
-- significant speedup and memory economy on expression preparation stage
-- the code can restart CIntegrate links in case they crash
-- bug fix - the integrator could crash in some rare cases (highly degenerate functions)
-- bug fix - slightly wrong presicion estimate in some rare cases
+- fixed a number of bugs that prevented SDExpand from working (asymptotics)
+- significant speedup and memory economy in some cases
 
