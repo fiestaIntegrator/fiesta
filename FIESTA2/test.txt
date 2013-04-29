@@ -1,0 +1,91 @@
+To test how the program works run
+math <T240.m
+
+
+Expected log:
+
+Mathematica 7.0 for Linux x86 (64-bit)
+Copyright 1988-2009 Wolfram Research, Inc.
+
+In[1]:= 
+In[2]:= 
+In[3]:= FIESTA 2.1.0
+
+In[4]:= 
+In[5]:= 
+In[6]:= 
+In[7]:= FIESTA 2.1.0
+QLink created (October 2008 version) ! You can read information on QOpen,\
+ 
+>   QRead, QRemoveDatabase, QRepair, QClose, QList, QSize, QPut, QGet,\
+ 
+>   QSafeGet, QCheck and QRemove
+This version is based on TokyoCabinet instead of QDBM; See the web-page of\
+ 
+>   the project for compatibility issues!
+Database ready
+External integration ready! Use CIntegrate to perform calls
+External integration ready! Use CIntegrate to perform calls
+CurrentIntegrator=vegasCuba;
+CurrentIntegratorSettings=
+   {{"epsrel","1.000000E-05"},{"epsabs","1.000000E-12"},
+   {"mineval","0"},{"maxeval","50000"},{"nstart","1000"},
+   {"nincrease","500"}};
+Starting 2 Subkernels
+UsingC: True
+NumberOfLinks: 2
+UsingQLink: True
+IntegrationCut: 0
+IfCut: 0.
+Strategy: STRATEGY_S
+Negative terms encountered: {-(x[1]*x[7]*x[10]*x[11])/2}
+Decomposing into two sectors corresponding to {10, 11}
+Integration has to be performed up to order 1
+Sector decomposition - 6 sectors
+Primary sector 3 resulted in 46 sectors.
+Primary sector 1 resulted in 50 sectors.
+Primary sector 4 resulted in 50 sectors.
+Primary sector 2 resulted in 46 sectors.
+Primary sector 5 resulted in 32 sectors.
+Primary sector 6 resulted in 28 sectors.
+Totally: 0.6057 seconds; 252 sectors.
+Preparing database: 0.0882 seconds. 
+Sector decomposition - 6 sectors
+Primary sector 3 resulted in 46 sectors.
+Primary sector 1 resulted in 50 sectors.
+Primary sector 4 resulted in 50 sectors.
+Primary sector 2 resulted in 46 sectors.
+Primary sector 5 resulted in 28 sectors.
+Primary sector 6 resulted in 32 sectors.
+Totally: 0.664 seconds; 252 sectors.
+Preparing database: 0.0962 seconds. 
+Variable substitution..........4.6483 seconds; 504 terms.
+Decomposing ep-independent term..........3.541 seconds; 504 terms.
+Pole resolution..........6.8289 seconds; 3600 terms.
+Expression preparation..........20.5377 seconds; 3600 terms.
+Epsilon expansion..........28.2009 seconds; 3552 terms.
+Expanding, making integration string..........4.8575 seconds; 528 terms.
+Terms of order -1: 528 (4-fold integrals).
+Numerical integration: 336 parts; 2 links;
+Integrating..........6.5132 seconds; returned answer: -0.000111 + 0.000163*pm337
+(-0.000037 + 0.000054*pm338)*ep^(-2)
+Expanding, making integration string..........11.6593 seconds; 1392 terms.
+Terms of order 0: 1392 (5-fold integrals).
+Numerical integration: 504 parts; 2 links;
+Integrating..........30.1331 seconds; returned answer: -3.295259 + 0.006206*pm843
+(-0.000037 + 0.000054*pm844)*ep^(-2)+(-1.09842 + 0.002069*pm845)*ep^(-1)
+Expanding, making integration string..........12.8659 seconds; 1512 terms.
+Terms of order 1: 1512 (5-fold integrals).
+Numerical integration: 504 parts; 2 links;
+Integrating..........78.7415 seconds; returned answer: -35.826601 + 0.103901*pm1350
+(-0.000037 + 0.000054*pm1351)*ep^(-2)+(-1.09842 + 0.002069*pm1352)*ep^(-1)+(-11.942474 + 0.034636*pm1353)*1
+Total time used: 211.415 seconds.
+
+                   -0.000037 + 0.000054 pm1354   -1.09842 + 0.002069 pm1355
+Out[7]= -11.9425 + --------------------------- + -------------------------- + 
+                                 2                           ep
+                               ep
+ 
+>    0.034636 pm1356
+
+In[8]:= 

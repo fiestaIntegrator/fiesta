@@ -27,9 +27,11 @@
 #define WITH_OPTIMIZATION 1
 
 
+/*
 #ifdef WITH_OPTIMIZATION
-/*#define STATISTICS_OUT 1*/
+#define STATISTICS_OUT 1
 #endif
+*/
 
 /*#define COM_INT int*/
 #define COM_INT long int
@@ -37,6 +39,9 @@
 
 /*IEEE FP type, used for input-output:*/
 #define FLOAT double
+
+/*Could'n handle smaller values!*/
+#define ABS_MONOM_MIN 1.0E-308
 
 /*Initial precision for internal FP, in bits:*/
 #ifndef PRECISION

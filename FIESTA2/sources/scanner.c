@@ -75,7 +75,10 @@ runExpr(), file runline.c
 #include <math.h>
 #include <errno.h>
 #include <string.h>
+
+#ifndef NO_MATH
 #include <mathlink.h>
+#endif
 
 #include "scanner.h"
 #include "tries.h"
@@ -162,7 +165,7 @@ static  void initIFArray(INTERNAL_FLOAT *f,SC_INT l)
 
 /*
  The quickselect algorith, returns the value of the `k'-th largest
- element form the array `v' of dimension `dim'. `k'-th largest element
+ element from the array `v' of dimension `dim'. `k'-th largest element
  means that in the array there are not more than `k' elements which are
  bigger than the found one, and at least `k' elements which are not
  smaller than the found one.
@@ -238,7 +241,7 @@ scan_t *newScanner(char *fname)
 {
    scan_t *res;
    int fd=0;
-#if ARITHMETIC != MPFR
+#if ARITHMETIC == MPFR
       mpfr_set_default_prec(g_default_precision);
 #endif
 
@@ -260,6 +263,7 @@ scan_t *newScanner(char *fname)
    res->maxX=NULL;
    res->fNativeLine=NULL;
    res->nativeX=NULL;
+   res->allMPvariables=NULL;
 #endif
 
    res->x=NULL;
@@ -268,10 +272,6 @@ scan_t *newScanner(char *fname)
    res->ep_i=NULL;
    res->wasCut=0;
    res->pstack=NULL;
-#if ARITHMETIC != NATIVE
-   res->newConstants=NULL;
-   res->newConstantsPos=NULL;
-#endif
    res->flags=0;
 #ifdef WITH_OPTIMIZATION
    res->flags|=FL_WITHOPTIMIZATION;
@@ -303,6 +303,7 @@ scan_t *newScannerFromStr(char *str)
    res->fNativeLine=NULL;
    res->nativeX=NULL;
    res->maxX=NULL;
+   res->allMPvariables=NULL;
 #endif
    res->x=NULL;
    res->f=NULL;
@@ -311,10 +312,6 @@ scan_t *newScannerFromStr(char *str)
    res->ep_i=NULL;
    res->wasCut=0;
    res->pstack=NULL;
-#if ARITHMETIC != NATIVE
-   res->newConstants=NULL;
-   res->newConstantsPos=NULL;
-#endif
    res->flags=0;
 
 #ifdef WITH_OPTIMIZATION
@@ -324,6 +321,10 @@ scan_t *newScannerFromStr(char *str)
    res->condChain=NULL;
    res->allCondChain=NULL;
    res->allocatedCondChains=NULL;
+#ifdef MIXED_ARITHMETIC
+   res->constStrings=NULL;
+   res->newConstantsPool.full=0;
+#endif
    res->rtTriad.length=0;
    res->ctTriad.max=0;
    res->ctTriad.free=0;
@@ -347,6 +348,7 @@ scan_t *newScannerMultiStr(multiLine_t *multiLine)
    res->fNativeLine=NULL;
    res->nativeX=NULL;
    res->maxX=NULL;
+   res->allMPvariables=NULL;
 #endif
    res->x=NULL;
    res->f=NULL;
@@ -355,10 +357,6 @@ scan_t *newScannerMultiStr(multiLine_t *multiLine)
    res->ep_i=NULL;
    res->wasCut=0;
    res->pstack=NULL;
-#if ARITHMETIC != NATIVE
-   res->newConstants=NULL;
-   res->newConstantsPos=NULL;
-#endif
    res->flags=0;
 
 #ifdef WITH_OPTIMIZATION
@@ -368,6 +366,10 @@ scan_t *newScannerMultiStr(multiLine_t *multiLine)
    res->condChain=NULL;
    res->allCondChain=NULL;
    res->allocatedCondChains=NULL;
+#ifdef MIXED_ARITHMETIC
+   res->constStrings=NULL;
+   res->newConstantsPool.full=0;
+#endif
    res->rtTriad.length=0;
    res->ctTriad.max=0;
    res->ctTriad.free=0;
@@ -680,10 +682,15 @@ void destroyScanner( scan_t *theScan)
       freeIFArray(theScan->fline->buf,theScan->fline->fill);
       free(theScan->fline);
    }/*if(theScan->fline!=NULL)*/
+
 #ifdef MIXED_ARITHMETIC
    if(theScan->fNativeLine!=NULL){
       free(theScan->fNativeLine->buf);
       free(theScan->fNativeLine);
+   }
+   if(theScan->allMPvariables!=NULL){
+      free(theScan->allMPvariables->buf);
+      free(theScan->allMPvariables);
    }
 #endif
    if(theScan->pstack!=NULL){
@@ -733,6 +740,16 @@ void destroyScanner( scan_t *theScan)
       free(theScan->allocatedCondChains->buf);
       free(theScan->allocatedCondChains);
    }
+#ifdef MIXED_ARITHMETIC
+   if(theScan->constStrings!=NULL){
+      free(theScan->constStrings->buf);
+      free(theScan->constStrings);
+   }
+   if(theScan->newConstantsPool.full > 0 ){
+      destroyMPool(&theScan->newConstantsPool);
+      theScan->newConstantsPool.full=0;
+   }
+#endif
    free(theScan);
    totalInputLength=-1; /*let it be processed normally by the next masterScan()*/
 }/*destroyScanner*/
@@ -930,6 +947,19 @@ char c;
         return c;
    }/*for(;;)switch(c=nextChar(theScan))*/
 }/*parseInt2*/
+
+static SC_INLINE char *parseConst(char *buf,int l,scan_t *theScan)
+{
+   for(;l>0;l--,buf++)switch(*buf=nextChar(theScan)){
+      case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':
+      case '8':case '9':
+        break;
+      default:
+        return buf;
+   }/*for(;l>0;l--,buf++)switch(*buf=nextChar(theScan))*/
+   parseError("Too long number");
+   return NULL;
+}/*parseConst*/
 
 static SC_INLINE int simpleScan(int iniOp, scan_t *theScan);
 
@@ -1174,6 +1204,12 @@ static SC_INLINE void fillOftUsed(SC_INT *oftUsed, scan_t *theScan)
 
 }/*fillOftUsed*/
 
+#ifdef MIXED_ARITHMETIC
+static SC_INLINE void storeAddress(scan_t *theScan, INTERNAL_FLOAT *cell)
+{
+pushCell(theScan->allMPvariables,cell);
+}/*storeAddress*/
+#endif
 
 static SC_INLINE void *allocatTLinePool(int *tlineInd)
 {
@@ -1236,6 +1272,7 @@ rt_triadaddr_t *rtaN;
       theScan->flags|=FL_NEVERTLINE;
 #endif
    theScan->x=malloc(theScan->nx * sizeof(INTERNAL_FLOAT));
+
    if(theScan->x == NULL)
       halt(-10,"malloc failed\n");
 
@@ -1248,7 +1285,13 @@ rt_triadaddr_t *rtaN;
 #if ARITHMETIC != NATIVE
     initIFArray(theScan->x,theScan->nx);
 #endif
-
+#ifdef MIXED_ARITHMETIC
+   {/*Block*/
+      int i;
+      for(i=0; i<theScan->nx; i++)
+         pushCell(theScan->allMPvariables,theScan->x+i);
+   }/*Block*/
+#endif
    if( !(theScan->flags & FL_NEVERTLINE) ){
 
       /*Put OFTUSED most popular triads to the array oftUsed*/
@@ -1431,9 +1474,15 @@ rt_triadaddr_t *rtaN;
             break;
          case OP_IPOW:
             initIFvar(&(rta->aIF.result));
+#ifdef MIXED_ARITHMETIC
+            pushCell(theScan->allMPvariables,&(rta->aIF.result));
+#endif
             break;
          default:
             initIFvar(&(rta->aF.result));
+#ifdef MIXED_ARITHMETIC
+            pushCell(theScan->allMPvariables,&(rta->aF.result));
+#endif
       }/*if( theScan->flags & FL_NEVERTLINE )switch(*cto)*/
 #endif/*if ARITHMETIC != NATIVE*/
       ptr1=getAddress(*cta1,theScan);
@@ -1976,6 +2025,7 @@ static SC_INLINE int processDiads(
    return 0;
 }/*processDiads*/
 
+#ifndef NO_MATH
 static SC_INLINE char *evaluateString(char *str)
 {
 const char *theString;
@@ -1985,27 +2035,20 @@ const char *theString;
       return NULL;
    return (char *)theString;
 }/*evaluateString*/
-
-static SC_INLINE SC_INT checkConstant(char *str,scan_t *theScan)
-{
-   SC_INT cpos=checkTrie(str,&(theScan->newConstantsTrie));
-   if(cpos>=0)
-      cpos=*((SC_INT*)(theScan->newConstantsTrie.mpool.pool+cpos));
-   return cpos;
-}/*checkConstant*/
-
-static SC_INLINE void installConstantInTable(char *str,char *val,scan_t *theScan,SC_INT cpos)
-{
-SC_INT tmp=mpoolAdd(&cpos, &(theScan->newConstantsTrie.mpool),sizeof(SC_INT));
-#if ARITHMETIC != NATIVE
-SC_INT tmp2=mpoolAdd(val,&(theScan->newConstantsTrie.mpool),strlen(val)+1);
 #endif
-   installTrie(str,tmp,&(theScan->newConstantsTrie));
-#if ARITHMETIC != NATIVE
-   addInt(theScan->newConstants,cpos);
-   addInt(theScan->newConstantsPos,tmp2);
+
+#ifdef MIXED_ARITHMETIC
+static SC_INLINE int pushConst(char *str,int invAlso,scan_t *theScan)
+{
+SC_INT tmp=mpoolAdd(str,&(theScan->newConstantsPool),strlen(str)+1);
+   if(tmp<0)
+      return -1;
+   addInt(theScan->constStrings, tmp);
+   if(invAlso)
+      addInt(theScan->constStrings,-1);
+   return 0;
+}/*pushConst*/
 #endif
-}/*installConstantInTable*/
 
 static SC_INLINE SC_INT installConstant(char *str,char *val,scan_t *theScan)
 {
@@ -2022,37 +2065,90 @@ FLOAT r=strtod(val,&p);
 #ifdef MIXED_ARITHMETIC
    cpos=theScan->fNativeLine->fill;
    addNativeFloat(theScan->fNativeLine,r);
-#else
+   addNativeFloat(theScan->fNativeLine,1.0l/r);
+   if( pushConst(val,1,theScan)<0 )
+      return -1;
+#endif
+
+#if ARITHMETIC == NATIVE
    cpos=theScan->fline->fill;
    addFloat(theScan->fline,r);
+   addFloat(theScan->fline,1.0l/r);
 #endif
-   installConstantInTable(str,val,theScan,cpos);
+   installTrie(str,&cpos,&(theScan->newConstantsTrie));
    return cpos;
 }/*installConstant*/
 
 static SC_INLINE SC_INT evaluateConstant(char *str,scan_t *theScan)
 {
+#ifndef NO_MATH
 char *theAnswer;
-SC_INT cpos=checkConstant(str,theScan);   
-   if(cpos<1){
-      theAnswer=evaluateString(str);
+#endif
+SC_INT cpos=checkTrie(str,&(theScan->newConstantsTrie));
+#ifndef NO_MATH
+   if(cpos<0){
+      char buf[128];
+      sprintf(buf,"N[%s,4096]",str);
+      theAnswer=evaluateString(buf);
       if(theAnswer==NULL){
-         halt(16," Can't evaluate '%s'\n",str);
+         halt(16," Can't evaluate '%s'\n",buf);
          return -1;
       }
       cpos=installConstant(str,theAnswer,theScan);
-      if(cpos<1)
+      if(cpos<0)
          return -1;
       MLReleaseString(stdlink, theAnswer);
    }
-   addInt(theScan->pstack,MK_FLOAT(cpos));   
+#endif
    return cpos;
 }/*evaluateConstant*/
+
+/*Returns the position in fline or -1 on error. If val==NULL, assumes that val = str. If invAlso!=0,
+  stores also the inverse value to the next after cpos cell:*/
+static SC_INLINE SC_INT tAndSConst(char *str,char *val,int invAlso,scan_t *theScan)
+{
+SC_INT cpos;
+char *p;
+FLOAT r;
+
+   cpos=checkTrie(str,&(theScan->newConstantsTrie));
+   if(cpos>=0)
+      return cpos; /*found*/
+
+   if(val==NULL)
+      val=str;
+
+   r=strtod(val,&p);
+
+   if(p==NULL)
+      return -1;
+   if(*p!='\0')
+      if(*p!='\n')
+         return -1;
+#ifdef MIXED_ARITHMETIC
+   cpos=theScan->fNativeLine->fill;
+   addNativeFloat(theScan->fNativeLine,r);
+   if(invAlso)
+      addNativeFloat(theScan->fNativeLine,1.0l/r);
+   if( pushConst(val,invAlso,theScan)<0 )
+      return -1;
+#endif
+#if ARITHMETIC == NATIVE
+   cpos=theScan->fline->fill;
+   addFloat(theScan->fline,r);
+   if(invAlso)
+      addFloat(theScan->fline,1.0l/r);
+#endif
+   installTrie(str,&cpos,&(theScan->newConstantsTrie));
+   return cpos;
+}/*tAndSConst*/
 
 static SC_INLINE char scanPolyGamma(scan_t *theScan)
 {
    char c,*id=ID_CONST_POLYGAMMA;
+   char polyGamma[128];
    int i,l=strlen(id);
+   SC_INT cpos=-1;
 
    /*If ID_CONST_POLYGAMMA == "PolyGamma" then "Pol" is scanned, now scan "yGamma":*/
    for(i=3;i<l;i++){
@@ -2068,28 +2164,34 @@ static SC_INLINE char scanPolyGamma(scan_t *theScan)
    if(parseInt(&l,theScan)!=C_B){parseError("'"C_B_S"' expected");return '\0';}
    /*now in i and l we have a weight*/
 
+   sprintf(polyGamma,"PolyGamma[%d,%d]",i,l);
+
    if( (i==1)&&(l==1) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA1_1));
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA1_1,1,theScan);
    else if( (i==2)&&(l==1) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA2_1));
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_1,1,theScan);
    else if( (i==2)&&(l==2) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA2_2));
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_2,1,theScan);
    else if( (i==2)&&(l==3) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA2_3));
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_3,1,theScan);
    else if( (i==2)&&(l==4) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA2_4));
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA2_4,1,theScan);
    else if( (i==3)&&(l==1) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA3_1));
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA3_1,1,theScan);
    else if( (i==3)&&(l==2) )
-      addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_POLYGAMMA3_2));
-   else{
-      char str[128];
-      sprintf(str,"N[PolyGamma[%d,%d],4096]",i,l);
-      if(evaluateConstant(str,theScan)<1)
-         return '\0';
+      cpos=tAndSConst(polyGamma,STR_CONST_POLYGAMMA3_2,1,theScan);
+   else
+      cpos=evaluateConstant(polyGamma,theScan);
+
+   if(cpos<0){
+      halt(16,"Parse error: can't evaluate %s\n",polyGamma);
+      return '\0';
    }
+
+   addInt(theScan->pstack,MK_FLOAT(cpos));
    return nextChar(theScan);
 }/*scanPolyGamma*/
+
 /*
    simpleScan() collects terms into the 'termStruct' with the corresponding 
    prefix operations in 'operation':
@@ -2221,9 +2323,14 @@ static SC_INLINE char scanTerm(int iniOp,
                  }/*else if(c == ID_CONST_POLYGAMMA[3])*/
               }/*if(c=='o')*/
               else{/*"pi", see a macros *_CONST_PI in the file constants.h*/
+                 SC_INT cpos=tAndSConst("Pi",STR_CONST_PI,1,theScan);
+                 if(cpos<0){
+                    parseError("Can't evaluate Pi");
+                    return '\0';
+                 }
                  diad[dCounter].theType='c';
                  MK_DLINK(D_C);
-                 addInt(theScan->pstack,MK_FLOAT(2*MAX_TAB+IND_CONST_PI));
+                 addInt(theScan->pstack,MK_FLOAT(cpos));
                  break;
               }/*if(c=='o')...else*/
               parseError("'P','Power' or 'PolyGamma' expected");
@@ -2232,106 +2339,41 @@ static SC_INLINE char scanTerm(int iniOp,
             case '5':case '6':case '7':case '8':case '9':
               diad[dCounter].theType='c';
               MK_DLINK(D_C);
-              n=c-'0';/*first char is scanned already!*/
-
               {/*Block*/
-                 int l=8;/*Not longer than 8*/
-                  c=parseIntN(&n,&l,theScan);
-                  if(l==0){
-                     FLOAT r=0.0;
-                     c=parseFloat(&r,n,theScan);
-                     if(c=='\0'){
-                        parseError("Too long number");
-                        return '\0';
-                     }
-#ifdef MIXED_ARITHMETIC
-                     addInt(theScan->pstack,MK_FLOAT(theScan->fNativeLine->fill));
-                     addNativeFloat(theScan->fNativeLine,r);
-#else
-                     addInt(theScan->pstack,MK_FLOAT(theScan->fline->fill));
-                     addFloat(theScan->fline,r);
-#endif
-                     break;
-                  }/*if(l==0)*/
+                 char *ptrC,constBuf[CONST_BUF];
+                 SC_INT cpos;
+                 constBuf[0]=c;
+                 ptrC=parseConst(constBuf+1,CONST_BUF-2,theScan);
+                 if(ptrC == NULL)
+                    return '\0';
+                 c=*ptrC;
+                 if(c=='.'){
+                    ptrC=parseConst(ptrC+1,CONST_BUF-(ptrC-constBuf)-2,theScan);
+                    if(ptrC == NULL)
+                       return '\0';
+                    c=*ptrC;
+                 }
+                 *ptrC='\0';/*Now in constBuf[] we have the string*/
+                 /*Now if isFloat!=0 then it is a floating point const.
+                   Also if l>8 we couldn't use integers for native arithmetics.*/
+                 cpos=tAndSConst(constBuf,NULL,1,theScan);
+                 if(cpos<0){
+                    halt(16,"Parse error: can't convert %s to number\n",constBuf);
+                    return '\0';
+                 }/*if(cpos<0)*/
+/*#ifndef MIXED_ARITHMETIC*/
+/*Problems with increasing precision for inverse constants.
+  Switch off for non-native arithmetics.*/
+
+                 /*Replace division by multiplication:*/
+                 if(diad[dCounter].operation == OP_DIV){
+                    diad[dCounter].operation = OP_MUL;
+                    addInt(theScan->pstack,MK_FLOAT(cpos+1));
+                 }
+                 else
+/*#endif*/
+                    addInt(theScan->pstack,MK_FLOAT(cpos));
               }/*Block*/
-              if(c == '.'){
-                 int n2=0;
-                 int s,e=0;
-                 c=parseInt2(&s,&n2,theScan);
-                 if( (c=='e')||(c=='E') ){
-                    int sign=0;
-                    c=nextChar(theScan);
-                    switch(c){
-                       case '0':case '1':case '2':case '3':case '4':
-                       case '5':case '6':case '7':case '8':case '9':
-                          e=c-'0';/*first char is scanned already!*/
-                          c=parseInt(&e,theScan);
-                          break;
-                       case '-':
-                          sign=-1;
-                       case '+':
-                          c=parseInt(&e,theScan);
-                          break;
-                       default:
-                          halt(16,"Parse error: unexpected %c\n",c);
-                          return '\0';
-                    }/*switch(c)*/
-                    if(sign)
-                       e=-e;
-                 }/*if( (c=='e')||(c=='E') )*/
-                 if(n2!=0){/*Fractional part present*/
-                    FLOAT r=(FLOAT)n+((FLOAT)n2)/s;
-                    if(e)
-                       r*=pow(10,e);
-#ifdef MIXED_ARITHMETIC
-                    addInt(theScan->pstack,MK_FLOAT(theScan->fNativeLine->fill));
-#else
-                    addInt(theScan->pstack,MK_FLOAT(theScan->fline->fill));
-#endif
-                    /*Replace divizion by multiplication:*/
-                    if(diad[dCounter].operation == OP_DIV){
-                       r=1.0 / r;
-                       diad[dCounter].operation = OP_MUL;
-                    }
-#ifdef MIXED_ARITHMETIC
-                    addNativeFloat(theScan->fNativeLine,r);
-#else
-                    addFloat(theScan->fline,r);
-#endif
-                    break;
-                 }
-              }/*if(c == '.')*/
-              if(n<MAX_TAB){
-                 if(diad[dCounter].operation == OP_DIV){
-                    n+=MAX_TAB;
-                    diad[dCounter].operation =OP_MUL;
-                 }
-                 addInt(theScan->pstack,MK_FLOAT(n));
-              }
-              else{
-#ifdef MIXED_ARITHMETIC
-                 addInt(theScan->pstack,MK_FLOAT(theScan->fNativeLine->fill));
-#else
-                 addInt(theScan->pstack,MK_FLOAT(theScan->fline->fill));
-#endif
-                 /*Replace divizion by multiplication:*/
-                 if(diad[dCounter].operation == OP_DIV){
-                    FLOAT r=1.0/n;
-                       diad[dCounter].operation =OP_MUL;
-#ifdef MIXED_ARITHMETIC
-                       addNativeFloat(theScan->fNativeLine,r);
-#else
-                       addFloat(theScan->fline,r);
-#endif
-                 }/*if(diad[dCounter].operation == OP_DIV)*/
-                 else{
-#ifdef MIXED_ARITHMETIC
-                    addNativeFloat(theScan->fNativeLine,(FLOAT)n);
-#else
-                    addFloat(theScan->fline,(FLOAT)n);
-#endif
-                 }/*else*/
-              }/*if(n<MAX_TAB) ... else*/
               break;
             default:
                  halt(16,"Parse error: unexpected %c\n",c);
@@ -2419,6 +2461,13 @@ int n,neg=0;
 #ifdef MIXED_ARITHMETIC
                     addInt(theScan->pstack,MK_FLOAT(theScan->fNativeLine->fill));
                     addNativeFloat(theScan->fNativeLine,r);
+                    addNativeFloat(theScan->fNativeLine,1.0l/r);
+                    {/*Block*/
+                       char buf[MAX_FLOAT_LENGTH];
+                       sprintf(buf,"%d.%d",n,n2);
+                       if(pushConst(buf,1,theScan))
+                          return '\0';
+                    }/*Block*/
 #else
                     addInt(theScan->pstack,MK_FLOAT(theScan->fline->fill));
                     addFloat(theScan->fline,r);
@@ -2769,17 +2818,19 @@ FLOAT prod=1.0;
    }
    if(prod>g_mpthreshold)
       prod=g_mpthreshold/2.0;
+
+   if(prod<ABS_MONOM_MIN)
+      prod=ABS_MONOM_MIN;/*To avoid overflow*/
+
    if(g_mpminChanged==0)
       g_mpmin=prod;/*else -- user defined*/
-   if(prod<g_mpmin)
-      prod=g_mpmin;/*To avoid overflow*/
    return intlog2(1.0/prod)+g_mpPrecisionShift;
 }/*getPrecision*/
 #endif
 
 int masterScan(scan_t *theScan)
 {
-int nx=0,nf=0,i,j;
+int nx=0,nf=0,i;
 char c=nextChar(theScan);
 /*The scanner is initialised, the pline is not yet*/
    switch(c){
@@ -2869,66 +2920,24 @@ char c=nextChar(theScan);
 
    ctTriadInit(estimateHashSize(theScan),&theScan->ctTriad);
 
-   /*buf[0..MAX_TAB-1] are used as tabbed float values for 0.0 ... (INTERNAL_FLOAT)(MAX_TAB-1),
-     buf[MAX_TAB] is reserved,
-     buf[MAX_TAB+1 ... 2*MAX_TAB-1] are used as float values for 1.0/1.0 ... 1.0/(MAX_TAB-1),
-     buf[2*MAX_TAB ... 2*MAX_TAB+NCONST-1]are predefined constants (like Pi):*/
-
-#ifndef MIXED_ARITHMETIC
-   /*In case of MIXED_ARITHMETIC fline will be initialized from 
-     fNativeLine after translation*/
-   theScan->fline=initCollectFloat(2*MAX_TAB+NCONST+INIT_FLOAT_SIZE, NULL);
-   theScan->fline->fill=2*MAX_TAB+NCONST;
-#endif
-
 #ifdef MIXED_ARITHMETIC
-   theScan->fNativeLine=initCollectNativeFloat(2*MAX_TAB+NCONST+INIT_FLOAT_SIZE, NULL);
-   theScan->fNativeLine->fill=2*MAX_TAB+NCONST;
-   for(i=0; i <MAX_TAB; i++)
-      theScan->fNativeLine->buf[i]=(FLOAT)i;
-   theScan->fNativeLine->buf[MAX_TAB]=(FLOAT)MAX_TAB;/*just to be initialised,not used*/
-   for(i++; i <2*MAX_TAB; i++)
-       theScan->fNativeLine->buf[i]=1.0/(i-MAX_TAB);
-
-   for(j=0; j<NCONST;j++,i++)
-       theScan->fNativeLine->buf[i]=flt_constants[j];
-#endif
-
-#if ARITHMETIC == NATIVE
-   for(i=0; i <MAX_TAB; i++)
-      theScan->fline->buf[i]=(INTERNAL_FLOAT)i;
-
-   for(i++; i <2*MAX_TAB; i++)
-       theScan->fline->buf[i]=1.0/(i-MAX_TAB);
-   for(j=0; j<NCONST;j++,i++)
-       theScan->fline->buf[i]=flt_constants[j];
+   theScan->fNativeLine=initCollectNativeFloat(INIT_FLOAT_SIZE, NULL);
+   theScan->constStrings=initCollectInt(NULL);
+   initMPool(&(theScan->newConstantsPool),1024);
+   theScan->allMPvariables=initCollect(NULL);
 #else
-#ifndef MIXED_ARITHMETIC
-   /*Note, in case of MIXED_ARITHMETIC fline will be initialized from 
-     fNativeLine after translation*/
-   initIFArray(theScan->fline->buf,theScan->fline->fill);
-
-   for(i=0; i <MAX_TAB; i++)
-      int2IFloat(theScan->fline->buf+i,i);
-   /*Not used but should be initialized for correct work of destroyScanner():*/
-   int2IFloat(theScan->fline->buf+i,i);
-   for(i++; i <2*MAX_TAB; i++){
-      FLOAT f=1.0L/(i-MAX_TAB);
-      float2IFloat(theScan->fline->buf+i,&f);
-   }
-   for(j=0; j<NCONST;j++,i++)
-       mpfr_set_str(theScan->fline->buf[i],str_constants[j],10,GMP_RNDN);
-#endif
+   theScan->fline=initCollectFloat(INIT_FLOAT_SIZE, NULL);
 #endif
 
-   theScan->pstack=initCollectInt(NULL);
-
-#if ARITHMETIC != NATIVE
-   theScan->newConstants=initCollectInt(NULL);
-   theScan->newConstantsPos=initCollectInt(NULL);
-#endif
    if(initTrie(&(theScan->newConstantsTrie))<0)
       halt(-20,"initTrie failed -- not enough memory?\n");
+
+   /*0 and 1 are pre-set:*/
+   tAndSConst("0",NULL,0,theScan);
+   /*also 1/1 since we replace / by *: for case ##/1*/
+   tAndSConst("1",NULL,1,theScan);
+
+   theScan->pstack=initCollectInt(NULL);
 
    theScan->condChain=initCollectInt(NULL);
    addInt(theScan->condChain,0);/*First element will be used as a buffer length*/
@@ -2967,28 +2976,42 @@ char c=nextChar(theScan);
    mpfr_set_default_prec(g_default_precision);
 
    theScan->fline=initCollectFloat(theScan->fNativeLine->fill, NULL);
-   theScan->fline->fill=theScan->fNativeLine->fill;
 
-   initIFArray(theScan->fline->buf,theScan->fline->fill);
+   addInt(theScan->constStrings,0);/*To be on the safe side*/
 
-   for(i=0; i <theScan->fline->fill; i++)
-      float2IFloat(theScan->fline->buf+i,theScan->fNativeLine->buf+i);
-
-   for(i=2*MAX_TAB,j=0; j<NCONST;j++,i++)
-       mpfr_set_str(theScan->fline->buf[i],str_constants[j],10,GMP_RNDN);
-
+   for(i=0; i <theScan->fNativeLine->fill; i++){
+      char *str=(char*) (theScan->newConstantsPool.pool + theScan->constStrings->buf[i]);
+      pushCell(theScan->allMPvariables,theScan->fline->buf+theScan->fline->fill);
+      addInternalFloatStr(theScan->fline,str);
+      if(theScan->constStrings->buf[i+1] == -1){
+         /*Store also */
+         /*Initialise the last cell -- note, no reallocation may occur!:*/
+         reservFloat(theScan->fline);
+         /*fline->buf[1] is 1, fline->buf[fline->fill-1] is 'val', we
+           store 1/val into fline->buf[fline->fill]:*/
+#if ARITHMETIC == MPFR      
+         mpfr_div(theScan->fline->buf[theScan->fline->fill],
+               theScan->fline->buf[1],
+               theScan->fline->buf[theScan->fline->fill-1],GMP_RNDN);
 #endif
-#if ARITHMETIC != NATIVE
-   for(i=0;i<theScan->newConstants->fill;i++)
-      mpfr_set_str(
-         theScan->fline->buf[ theScan->newConstants->buf[i] ],
-         theScan->newConstantsTrie.mpool.pool+
-             theScan->newConstantsPos->buf[i],
-         10,GMP_RNDN);
-   free(theScan->newConstants->buf);
-   free(theScan->newConstants);
-   free(theScan->newConstantsPos->buf);
-   free(theScan->newConstantsPos);
+         pushCell(theScan->allMPvariables,theScan->fline->buf+theScan->fline->fill);
+         theScan->fline->fill++;/*Store the cell*/
+         i++;/*Skip next "-1" in theScan->constStrings*/
+      }/*if(theScan->constStrings->buf[i+1] == -1)*/
+   }/*for(i=0; i <theScan->fNativeline->fill; i++)*/
+/*@@@*/
+#if 0
+   if(theScan->constStrings != NULL){
+     free(theScan->constStrings->buf);
+     free(theScan->constStrings);
+     theScan->constStrings=NULL;
+   }
+   if(theScan->newConstantsPool.full>0){
+      destroyMPool(&(theScan->newConstantsPool));
+      theScan->newConstantsPool.full=0;
+   }
+#endif
+/*@@@*/
 #endif
    destroyTrie(&(theScan->newConstantsTrie));
    if(buildRtTriad(theScan))

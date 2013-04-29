@@ -50,9 +50,16 @@ invokes the interpreter runExpr(), see the file "runline.c".
 
 /*Define the file name to save an input string;
   if not defined, the string will not be saved:*/
+
 /*
 #define FILE_TO_SAVE_INPUT "inputString"
 */
+
+
+#ifdef FILE_TO_SAVE_INPUT
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 /*
 #define DEBUG_CHECK_RETURNED 1
@@ -145,6 +152,11 @@ int setDefaultPrecision(int p)
    PutErrorMessage("SetMPPrecision","Can't change precision for native arithmetic!\n");
    return 0;   
 #else
+   if (p==0){
+      g_default_precision=PRECISION;
+      g_default_precisionChanged=0;
+      return 0;
+   }
    if( p < PREC_MIN ){
       PutErrorMessage("SetMPPrecision","Too small number.\n");
       return 1;
@@ -202,6 +214,8 @@ int setMPSmallX(FLOAT ep)
       PutErrorMessage("SetSmallX","Ep <= 0!");
       return 1;
    }
+   if( ep > 1.0)
+      ep=1.0/ep;
    g_mpsmallX=ep;
 #endif
    return 0;
@@ -214,6 +228,8 @@ int setMPthreshold(FLOAT ep)
       PutErrorMessage("SetMPThreshold","Ep <= 0!");
       return 1;
    }
+   if( ep > 1.0)
+      ep=1.0/ep;
    g_mpthreshold=ep;
 #endif
    return 0;
@@ -222,6 +238,13 @@ int setMPthreshold(FLOAT ep)
 int setMPmin(FLOAT ep)
 {
 #ifdef MIXED_ARITHMETIC
+   if(ep <= 0.0){
+      g_mpmin=MPMIN;
+      g_mpminChanged=0;
+      return 0;
+   }
+   if( ep > 1.0)
+      ep=1.0/ep;
    g_mpmin=ep;
    g_mpminChanged=1;
 #endif
@@ -231,6 +254,10 @@ int setMPmin(FLOAT ep)
 int setMPPrecisionShift(int s)
 {
 #ifdef MIXED_ARITHMETIC
+   if( s > PREC_MAX){
+      PutErrorMessage("SetMPPrecisionShift","Too large number.\n");
+      return 1;
+   }
    g_mpPrecisionShift=s;
 #endif
    return 0;
@@ -238,29 +265,19 @@ int setMPPrecisionShift(int s)
 
 #ifdef FILE_TO_SAVE_INPUT
 static FILE *l_fileToSave=NULL;
-static int l_fileToSaveCounter=0;
+int g_fileToSaveCounter=0;
+char g_fileToSaveNam[256];
 #endif
 
 int doAddString (char* s)
 {
 #ifdef FILE_TO_SAVE_INPUT
      if(l_fileToSave == NULL){
-        /*Open unique file:*/
-        char buf[256];
-        do{
-           sprintf(buf,"%s%d.txt",FILE_TO_SAVE_INPUT,l_fileToSaveCounter++);
-           l_fileToSave=fopen(buf,"r");
-           if(l_fileToSave!=NULL){
-              fclose(l_fileToSave);
-              l_fileToSave=NULL;
-           }
-           else{
-              l_fileToSave=fopen(buf, "w");
-              if(l_fileToSave==NULL)
-                 return 2;
-           }
-        }while(l_fileToSave==NULL);
-     }/*if(l_fileToSave == NULL)*/
+        sprintf(g_fileToSaveNam,"%s%d_%d.txt",FILE_TO_SAVE_INPUT,getpid(),g_fileToSaveCounter);
+        l_fileToSave=fopen(g_fileToSaveNam, "w");
+        if(l_fileToSave==NULL)
+             return 2;
+     }
 #endif
   if( ml.mline.buf == NULL){
      if(initMultiLine(&ml)){

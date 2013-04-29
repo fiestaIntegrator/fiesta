@@ -36,7 +36,7 @@ If[Not[ValueQ[BisectionVariables]],
 
 If[Not[ValueQ[NegativeTermsHandling]],
     NegativeTermsHandling="Squares";
-]; (* "AdvancedSquares", "Squares", "None", "MB" *)
+]; (* "AdvancedSquares", "AdvancedSquares2", "Squares", "None", "MB" *)
 
 If[Not[ValueQ[ExactIntegrationOrder]],
     ExactIntegrationOrder=-Infinity;
@@ -125,11 +125,15 @@ If[Not[ValueQ[CurrentIntegrator]],
 
 DefaultPrecision;
 If[Not[ValueQ[SmallX]],
-    SmallX=0.001;   (* evaluation should be possible at {SmallX,...,SmallX} *)
+    SmallX=0.00001;   (* evaluation should be possible at {SmallX,...,SmallX} *)
 ];
+
+
+If[ValueQ[MPThreshold],MPThreshhold=MPThreshold;];
 If[Not[ValueQ[MPThreshhold]],
-    MPThreshhold=10^-9;    (*  going to high precision if the Monom is less than MPThreshhold *)
+     MPThreshhold=10^-9;    (*  going to high precision if the Monom is less than MPThreshhold *)
 ];
+
 MPMin;
 If[Not[ValueQ[PrecisionShift]],
     PrecisionShift=38;   (* additional bits in multiprecision *)
@@ -185,7 +189,7 @@ Begin["FIESTA`"];
 SDEvaluateG::Usage="SDEvaluate[{graph,external},{U,F,loops},indices,order] evaluates the integral"
 SDEvaluate::Usage="SDEvaluate[{U,F,loops},indices,order] evaluates the integral"
 SDEvaluateDirect::Usage="SDEvaluate[degrees,functions,order] evaluates the integral (no delta function)"
-SDExpandG::Usage="SDExpand[{graph,external},{U,F,loops},indices,order,expand_var,expand_degree] expands the integral"
+SDExpandG::Usage="SDExpandG[{graph,external},{U,F,loops},indices,order,expand_var,expand_degree] expands the integral"
 SDExpand::Usage="SDExpand[{U,F,loops},indices,order,expand_var,expand_degree] evaluates the integral"
 ClearResults::Usage="ClearResults[] clears the results from memory"
 UF::Usage="UF[LoopMomenta,Propagators,subst] generates the functions U and F"
@@ -506,8 +510,18 @@ InitializeLinks[]:=Module[{temp,i,j},
         NumberOfSubkernels=0;
     ];
     If[NumberOfSubkernels>0,
-        RawPrintLn["Starting ",NumberOfSubkernels," Subkernels"];
-        CloseKernels[];
+        RawPrintLn["Starting ",NumberOfSubkernels," Subkernels"];	
+	If[Length[Kernels[]]>0,
+(*	  Print[1];*)
+	  ParallelEvaluate[Abort[]];
+(*Print[2];*)
+Parallel`Developer`ClearKernels[];
+(*Print[3];*)
+	  Parallel`Developer`ResetQueues[];
+(*Print[4];*)
+	
+	  CloseKernels[];	
+	];
         LaunchKernels[NumberOfSubkernels];
         DistributeDefinitions["FIESTA`"];
         ParallelEvaluate[
@@ -542,7 +556,7 @@ UF[xx_, yy_, z_] := Module[{degree, coeff, i, t2, t1, t0, zz},
 
 ClearResults[]:=Clear[SDIntegral,SDExact];
 
-VersionString:="FIESTA 2.0.0";
+VersionString:="FIESTA 2.1.2";
 CodeInfo[]:=Module[{temp},
     RawPrintLn["UsingC: ",UsingC];
     RawPrintLn["NumberOfLinks: ",NumberOfLinks];
@@ -1823,6 +1837,7 @@ IntegrateHere[expression_,tryexact_]:=Module[{ff,result,result2},
                     ,
                         result=result[[2]];
                         result2=DeleteCases[##, HoldForm[$MessageList]] & /@result2;
+			result2=DeleteCases[result2,{}];
                         Good=False;
                         If[And[Length[$MessageList]>=1,Last[$MessageList]===HoldForm[NIntegrate::"maxp"],Length[result2]===1,
                             ReleaseHold[result2[[1]][[2]]]===result],
@@ -1901,6 +1916,7 @@ AdvancedKillNegTerms[ZZ_,level_]:=Module[{temp,vars,subsets,U,F,UF,Z,i,mins,rs,r
 
     i=Position[mins,Min[mins],{1}][[1]][[1]];
     If[mins[[i]]===Infinity,
+       (*If[Length[temp]>0,Print[ZZ];Print[temp];Abort[]];*)
       (*  Print["Recursion level ",level,": ",Length[temp]," negative terms remaining"];*)
         Return[{{ZZ},Length[temp]}],
 (*        Print["Recursion level ",level,": total number of negative terms below =",mins[[i]]];*)
@@ -1909,6 +1925,42 @@ AdvancedKillNegTerms[ZZ_,level_]:=Module[{temp,vars,subsets,U,F,UF,Z,i,mins,rs,r
         Return[{rs[[i]],mins[[i]]}];  
     ];
 ]
+
+AdvancedKillNegTerms2[ZZ_,level_]:=Module[{temp,vars,subsets,U,F,UF,Z,i,mins,rs,r1,r2},
+(*Return[{ZZ}];*)    
+    If[level===1,RawPrintLn["Advanced netative terms resolution, version 2 (might take some time)"]];
+    {Z,MM,UF}=ZZ;
+    temp=NegTerms[UF[[2]]];
+    If[temp==={},Return[{{{ZZ},0}}]];
+  (*  RawPrintLn["Negative terms encountered: ",InputForm[temp]];*)
+    vars=#[[1]]&/@Cases[Variables[temp],x[_]];
+    subsets=Subsets[vars,{2}];
+    variants={};
+    (*mins=Table[Infinity,{Length[subsets]}];
+    rs=Table[{},{Length[subsets]}];*)
+    For[i=1,i<=Length[subsets],i++,
+        If[And[Length[NegTerms[VarDiffReplace[UF[[2]],subsets[[i]]]]]<Length[temp],
+               Length[NegTerms[VarDiffReplace[UF[[2]],{subsets[[i]][[2]],subsets[[i]][[1]]}]]]<Length[temp]]
+                ,
+            r1=AdvancedKillNegTerms2[VarDiffReplace[{{#[[1]]/2,#[[2]]}&/@Z,MM,UF},subsets[[i]]],level+1];
+            r2=AdvancedKillNegTerms2[VarDiffReplace[{{#[[1]]/2,#[[2]]}&/@Z,MM,UF},{subsets[[i]][[2]],subsets[[i]][[1]]}],level+1];
+	    pairs=Tuples[{r1,r2}];
+	    variants=Join[variants,{Join[##[[1]][[1]],##[[2]][[1]]],##[[1]][[2]]+##[[2]][[2]]}&/@pairs];
+        ];
+    ];
+      If[Length[variants]==0,Return[{{{ZZ},Length[temp]}}]];
+	If[level===1,
+	  min=Min@@((##[[2]])&/@variants);
+	  i=Position[((##[[2]])&/@variants),min][[1]][[1]];	
+          RawPrintLn["Total number of negative terms remaining in subexpressions: ",variants[[i]][[2]]];
+	  RawPrintLn["Total number of subexpressions: ",Length[variants[[i]][[1]]]];
+	  Return[{variants[[i]]}];	
+	,
+	  Return[variants];
+	];  
+   
+]
+
 
 
 SeparateNegTerms[ZZ_]:=Module[{temp,vars,subsets,U,F,UF,Z,i},
@@ -2063,6 +2115,15 @@ SDEvaluate1[{U_,F_,h_},degrees1_,order_]:=Module[{ZZ,n,degrees,epdegrees,runorde
             Abort[];
         ];
     ];
+    If[Length[NegTerms[F]]==Length[Expand[F]],
+      RawPrintLn["!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"];
+      RawPrintLn["All terms in F are negative. Please consider to change the sign of all propagators"];
+      ,
+      If[Length[NegTerms[F]]>Length[Expand[F]]/2,
+	RawPrintLn["There are more negative terms in F than positive ones. Please consider to change the sign of all propagators"]
+      ]
+    ];
+
     degrees=degrees1/.{ep->0};
     epdegrees=Expand[degrees1-(degrees1/.{ep->0})]/ep;
     a1=Plus@@degrees1;
@@ -2148,7 +2209,10 @@ SDEvaluate2[ZZ1_,degrees_,epdegrees_,runorder_,order_,outside_,deltas_]:=Module[
     If[NegativeTermsHandling==="AdvancedSquares",
         ZZ=Flatten[AdvancedKillNegTerms[##,1][[1]]&/@ZZ,1]
     ];
-    
+
+    If[NegativeTermsHandling==="AdvancedSquares2",
+        ZZ=Flatten[AdvancedKillNegTerms2[##,1][[1]][[1]]&/@ZZ,1]
+    ];    
     
         ZZ=ZZ/.ExpandVariable->ExV;
     If[ExpandMode,
@@ -2435,10 +2499,13 @@ MLN[xx_] := Module[{n, vectors, i, j, ll, nn,l,v},
   {n, l, m, Position[v,Min@@v][[1]][[1]], Position[v,Max@@v][[1]][[1]]}
 ]
 
-TriLower[xx_, yy_] :=
- If[xx[[1]] < yy[[1]], True,
-  If[xx[[2]] < yy[[2]], True, If[xx[[3]] < yy[[3]], True, False],
-   False], False]
+TriLower[xx_, yy_] := 
+ If[xx[[1]] < yy[[1]], True, 
+  If[xx[[1]] > yy[[1]], False, 
+   If[xx[[2]] < yy[[2]], True, 
+    If[xx[[2]] > yy[[2]], False, 
+     If[xx[[3]] < yy[[3]], True, False]]]]]
+
 
  MakeOneStep[xxx_] := Module[{xx,temp, active, n,m, sbs,i,j, res,Matrix,newfacet,restarted=False},
  xx={xxx[[1]][[1]],xxx[[2]],xxx[[3]]};

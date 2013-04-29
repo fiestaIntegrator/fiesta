@@ -215,6 +215,42 @@ static CS_INLINE collectFloat_t *addFloat( collectFloat_t *theFloat, FLOAT c)
 #endif
    return theFloat;
 }/*addFloat*/
+
+#if ARITHMETIC != NATIVE
+static CS_INLINE collectFloat_t *reservFloat( collectFloat_t *theFloat)
+{
+   if( theFloat->fill >= theFloat->top )
+     reallocCollectFloat(theFloat);
+   initIFvar(theFloat->buf+theFloat->fill);
+   return theFloat;
+}/*reservFloat*/
+
+static CS_INLINE collectFloat_t *addInternalFloat( collectFloat_t *theFloat, INTERNAL_FLOAT c)
+{
+   if( theFloat->fill >= theFloat->top )
+     reallocCollectFloat(theFloat);
+   initIFvar(theFloat->buf+theFloat->fill);
+#if ARITHMETIC == MPFR
+   mpfr_set(theFloat->buf[theFloat->fill],c,GMP_RNDN);
+#endif
+   theFloat->fill++;
+   return theFloat;
+}/*addInternalFloat*/
+
+
+static CS_INLINE collectFloat_t *addInternalFloatStr( collectFloat_t *theFloat, char *c)
+{
+   if( theFloat->fill >= theFloat->top )
+     reallocCollectFloat(theFloat);
+   initIFvar(theFloat->buf+theFloat->fill);
+#if ARITHMETIC == MPFR
+   mpfr_set_str(theFloat->buf[theFloat->fill],c,10,GMP_RNDN);
+#endif
+   theFloat->fill++;
+   return theFloat;
+}/*addInternalFloatStr*/
+#endif
+
 /************ :array of INTERNAL_FLOAT ****************************/
 
 /************ array of FLOAT:****************************/

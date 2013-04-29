@@ -1,0 +1,5 @@
+In order to compile the binaries yourself you have to
+1) In case of Windows install Cygwin (www.cygwin.com)
+2) Install the Cuba library 1. (do not forget to start with export CFLAGS="-O3"; ./configure)
+3) Edit the Makefile specifying correct paths to the Cuba library and the Mathematica Developer Kit, uncommenting lines, corresponding to your operating system.
+5) Make it!

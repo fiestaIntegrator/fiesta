@@ -1,0 +1,95 @@
+Installation the Mathematica part.
+
+Please note that the code requires Wolfram Mathematica 6.0 or 7.0
+(recommended) to be installed and will not work correctly under lower
+versions of Mathematica.
+
+1.Copy the file FIESTA_2.0.0.m to the proper location, e.g
+cp FIESTA_2.0.0.m /home/user/FIESTA/FIESTA_2.0.0.m
+
+2. Edit the default paths QLinkPath, CIntegratePath and DataPath in
+the file FIESTA_2.0.0.m, e.g.
+QLinkPath="/home/user/QLink/QLink";
+CIntegratePath="/home/user/FIESTA/CIntegrate";
+DataPath="/tmp/user/temp";
+
+Here QLinkPath is a  path to the executable QLink file,
+CIntegratePath is a  path to the executable CIntegrate file,
+DataPath is a path to the database. FIESTA creates three files,
+appendig "1", "2" and "3" to the name provided by DataPath, i.e., in
+the above mentioned example three files will be used, /tmp/user/temp1,
+/tmp/user/temp2 and /tmp/user/temp3.
+Note, FIESTA might produce a big traffic to the directory DataPath so
+it is preferable to use some fast local disk with enough free space.
+
+For the Windows system, these paths should look like
+QLinkPath="C:/programs/QLink/QLink.exe";
+CIntegratePath="C:/programs/FIESTA/CIntegrate.exe";
+DataPath="D:/temp";
+
+Note that the program will create a big IO traffic to the directory
+\verb|DataPath|, therefore, it is better to put this directory on a fast
+local disk.
+
+Installation QLink.
+
+Copy to the proper location the file QLink32 for 32-bit Linux or the
+file QLink64 for 64-bit Linux or QLink.exe for Windows, e.g.
+cp QLink32 /home/user/FIESTA/QLink
+
+The latest verson of QLink can be downloaded as a binary file or
+compiled from the sources, see
+http://www-ttp.particle.uni-karlsruhe.de/~asmirnov/QLink.htm
+
+Installation CIntegrate.
+
+Copy to the proper location the executable file CIntegrate, e.g.
+cp CIntegrateMP32 /home/user/FIESTA/CIntegrate
+
+There are two families of pre-compiled binaries in the distribution,
+CIntegrate and CIntegrateMP (recommended). CIntegrate uses the native
+IEEE floating-point arithmetic, it is faster but much more
+restrictive.  CIntegrateMP uses the MPFR multi-precision library if
+necessary, it is slightly slower than CIntegrate but it should produce
+a correct result for almost all integrals, so we strongly recommend to
+use CIntegrateMP.
+
+CIntegrateMP32   multiprecision version for 32-bit Linux
+CIntegrateMP64   multiprecision version for 64-bit Linux
+CIntegrateMP.exe multiprecision version for Windows
+
+CIntegrate32     native floating-point arithmetic for 32-bit Linux
+CIntegrate64     native floating-point arithmetic for 64-bit Linux
+CIntegrate.exe   native floating-point arithmetic for Windows
+
+If the user wants to compile the executable file himself he must have
+several software packages to be installed on his computer.
+
+First, the Mathematica Developer Kit. It sould be installed if the
+user has the official Wolfram Mathematica installation.
+
+The CIntegrate program depends on the MPFR library http://www.mpfr.org
+and the Cuba library http://www.feynarts.de/cuba
+
+After installing MPFR and the Cuba library
+the user has to edit the self-explanatory Makefile and run the command "make". 
+Then, two executable files should appear, CIntegrate and
+CIntegrateMP. Th first one uses the native IEEE floating-point
+arithmetic while CIntegrateMP uses the MPFR multi-precision
+library if necessary. CIntegrateMP is slightly slower than CIntegrate but it 
+should produce a correct result for almost
+all integrals, so we strongly recommend to use CIntegrateMP.
+
+The C-sources are situated in the subdirectory "sources". The
+program CIntegrate is compiled in the subdirectory "native"
+and the program CIntegrateMP is compiled in the subdirectory
+"mpfr". After successful compilation both executable files are moved
+to the root FIESTA directory. In order to clean up the directory
+structure, the user may use the command "make clean".
+
+Under Windows the compilation should be performed under the Cygwin environment. 
+In this case, the executable files will get
+the extension ".exe".
+
+
+

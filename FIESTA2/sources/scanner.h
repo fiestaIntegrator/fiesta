@@ -18,6 +18,7 @@
 #include "comdef.h"
 
 #if ARITHMETIC == MPFR
+#include <stdio.h>
 #include <mpfr.h>
 #define PREC_MIN MPFR_PREC_MIN
 /*Just arbitrary restriction to fit signed int on 32-bit systems, 2^31-1:*/
@@ -28,6 +29,7 @@
 extern "C" {
 #endif
 
+#define CONST_BUF 256
 /* Parameters affectin the performance: */
 /*If the number of triads is more then this value, the result 
 will be stored by address rather than by value:*/
@@ -44,7 +46,7 @@ will be stored by address rather than by value:*/
 
 /*Numbers without fractions from 0 to MAX_TAB are tabbed: */
 
-#define MAX_TAB 138240
+#define MAX_TAB 4
 
 /* :Parameters affectin the performance */
 
@@ -330,9 +332,12 @@ typedef struct scan_struct{
 #ifdef MIXED_ARITHMETIC
    collectNativeFloat_t *fNativeLine;
 #endif
+
    INTERNAL_FLOAT *x;
 #ifdef MIXED_ARITHMETIC
    FLOAT *nativeX;
+   /*Collects addresses of all activated MP variables:*/
+   collect_t *allMPvariables;
 #endif
    SC_INT *f;
 
@@ -357,12 +362,13 @@ typedef struct scan_struct{
     */
    collectInt_t *pstack;
 
-#if ARITHMETIC != NATIVE
-   /*constants evaluated by Mathematica:*/
-   collectInt_t *newConstants;
-   collectInt_t *newConstantsPos;
-#endif
+   /*Symbolic constants like PolyLog and numerical strings:*/
    trieRoot_t newConstantsTrie;
+#ifdef MIXED_ARITHMETIC
+   /*indices of newConstantsTrie->mpool.pool[]:*/
+   collectInt_t *constStrings;
+   mpool_t newConstantsPool;
+#endif
    int flags;
 
    /*if-related stuff:*/

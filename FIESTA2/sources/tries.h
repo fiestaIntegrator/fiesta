@@ -160,39 +160,42 @@ TR_INT root;
    return root;
 }
 
-/*returns -1 if fails, 1 is install a new or 0 if found already existing:*/
-static int installTrie(char *str, TR_INT value,trieRoot_t *trie)
+/*returns -1 if fails, 1 is install a new or 0 if found already existing.
+In the latter case the value of '*value' is set to the existing value:*/
+static int installTrie(char *str, TR_INT *value,trieRoot_t *trie)
 {
 trie_t *t=&(trie->root);
 TR_INT mem,tmp;
    if(t->right<0){
-      t->right=buildTrie(str,value, trie, -1);
+      t->right=buildTrie(str,*value, trie, -1);
       return 1;
    }
    mem= ((char*)&(t->right)) - trie->mpool.pool;
    t=(trie_t *)(trie->mpool.pool+t->right);
    while(*str != '\0'){
       if (*str < t->key){
-         tmp=buildTrie(str,value, trie, *((TR_INT*)(trie->mpool.pool+mem)));
+         tmp=buildTrie(str,*value, trie, *((TR_INT*)(trie->mpool.pool+mem)));
          *((TR_INT*)(trie->mpool.pool+mem))=tmp;
          return 1;
       }
       if(*str == t->key){
          str++;
          if(*str == '\0'){
-            if(t->value >= 0)
+            if(t->value >= 0){
+               *value = t->value;
                return 0;
-            t->value = value;
+            }/*if(t->value >= 0)*/
+            t->value = *value;
             return 1;
          }/*if(*str == '\0')*/
          if(t->next < 0){
             /*we can't do just 
-              t->next = buildTrie(str,value,trie,-1);
+              t->next = buildTrie(str,*value,trie,-1);
               since the actual address of t might be 
               changed by buildTrie
              */
             mem= ((char*)&(t->next))-trie->mpool.pool;
-            tmp = buildTrie(str,value,trie,-1);
+            tmp = buildTrie(str,*value,trie,-1);
             *((TR_INT*)(trie->mpool.pool+mem))=tmp;
             return 1;
          }/*if(t->next < 0)*/
@@ -203,12 +206,12 @@ TR_INT mem,tmp;
       /* *str > t->key*/
       if(t->right < 0){
          /*we can't do just 
-           t->right = buildTrie(str,value,trie,-1);
+           t->right = buildTrie(str,*value,trie,-1);
            since the actual address of t might be 
            changed by buildTrie
           */
          mem= ((char*)&(t->right))-trie->mpool.pool;
-         tmp=buildTrie(str,value, trie, -1);
+         tmp=buildTrie(str,*value, trie, -1);
          *((TR_INT*)(trie->mpool.pool+mem))=tmp;
          return 1;
       }/*if(t->right < 0)*/

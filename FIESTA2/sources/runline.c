@@ -27,12 +27,17 @@ invokes the interpreter runline().
 #include <math.h>
 
 /*#define DEBUG 1*/
+/*#define DEBUG_PREC 1*/
 
 #if ARITHMETIC != NATIVE
 static INTERNAL_FLOAT *l_one;
 #endif
 
 #if ARITHMETIC == NATIVE
+
+#define CHC1(a)
+#define CHC2(a,b)
+#define CHC3(a,b,c) 
 
 #define CPY(a,b) (a) = (b)
 #define LOG(a,b) (a) = log(b)
@@ -62,31 +67,57 @@ return *f;
 
 #elif ARITHMETIC == MPFR
 
-#define CPY(a,b) mpfr_set((a),(b),GMP_RNDN)
-#define LOG(a,b) { if (mpfr_cmp_d((b),1.0E-100) <=0)\
+#ifdef DEBUG_PREC
+#define CHC1(a) \
+   if(mpfr_get_prec(a)<g_default_precision)fprintf(stderr,"%ld<%d\n",\
+   mpfr_get_prec(a),g_default_precision);
+
+#define CHC2(a,b) \
+   if(mpfr_get_prec(a)<g_default_precision)fprintf(stderr,"%ld<%d\n",\
+   mpfr_get_prec(a),g_default_precision);\
+   if(mpfr_get_prec(b)<g_default_precision)fprintf(stderr,"%ld<%d\n",\
+   mpfr_get_prec(b),g_default_precision);
+
+#define CHC3(a,b,c) \
+   if(mpfr_get_prec(a)<g_default_precision)fprintf(stderr,"%ld<%d\n",\
+   mpfr_get_prec(a),g_default_precision);\
+   if(mpfr_get_prec(b)<g_default_precision)fprintf(stderr,"%ld<%d\n",\
+   mpfr_get_prec(b),g_default_precision);\
+   if(mpfr_get_prec(c)<g_default_precision)fprintf(stderr,"%ld<%d\n",\
+   mpfr_get_prec(c),g_default_precision);
+#else
+#define CHC1(a)
+#define CHC2(a,b)
+#define CHC3(a,b,c) 
+#endif
+
+#define CPY(a,b)  { CHC2(a,b) mpfr_set((a),(b),GMP_RNDN); }
+#define LOG(a,b) { CHC1(a) if (mpfr_cmp_d((b),1.0E-100) <=0)\
                       mpfr_set_d((a),-230.258509299405,GMP_RNDN);\
                    else mpfr_log((a),(b),GMP_RNDN); }
-#define NEG(a,b) mpfr_neg((a),(b),GMP_RNDN)
-#define INV(a,b) mpfr_div((a),*l_one,(b),GMP_RNDN)
-#define POW(a,b,c) mpfr_pow((a),(b),(c),GMP_RNDN)
-#define IPOW(a,b,c) mpfr_pow_si((a),(b),(c),GMP_RNDN)
-#define MUL(a,b,c) mpfr_mul((a),(b),(c),GMP_RNDN)
-#define POW3(a,b) mpfr_pow_ui((a),(b),3,GMP_RNDN)
-#define POW4(r,b) mpfr_pow_ui((r),(b),4,GMP_RNDN)
-#define POW5(r,b) mpfr_pow_ui((r),(b),5,GMP_RNDN)
-#define POW6(r,b) mpfr_pow_ui((r),(b),6,GMP_RNDN)
-#define MINUS(a,b,c) mpfr_sub((a),(b),(c),GMP_RNDN)
-#define DIV(a,b,c) mpfr_div((a),(b),(c),GMP_RNDN)
-#define PLUS(a,b,c) mpfr_add((a),(b),(c),GMP_RNDN)
+#define NEG(a,b) { CHC2(a,b) mpfr_neg((a),(b),GMP_RNDN);}
+#define INV(a,b) { CHC2(a,b) mpfr_div((a),*l_one,(b),GMP_RNDN);}
+#define POW(a,b,c) {CHC3(a,b,c) mpfr_pow((a),(b),(c),GMP_RNDN);}
+#define IPOW(a,b,c) {CHC2(a,b) mpfr_pow_si((a),(b),(c),GMP_RNDN);}
+#define MUL(a,b,c) { CHC3(a,b,c) mpfr_mul((a),(b),(c),GMP_RNDN);}
+#define POW3(a,b) { CHC1(a) mpfr_pow_ui((a),(b),3,GMP_RNDN);}
+#define POW4(r,b) { CHC1(r) mpfr_pow_ui((r),(b),4,GMP_RNDN);}
+#define POW5(r,b) { CHC1(r) mpfr_pow_ui((r),(b),5,GMP_RNDN);}
+#define POW6(r,b) { CHC1(r) mpfr_pow_ui((r),(b),6,GMP_RNDN);}
+#define MINUS(a,b,c) { CHC3(a,b,c) mpfr_sub((a),(b),(c),GMP_RNDN);}
+#define DIV(a,b,c) { CHC3(a,b,c) mpfr_div((a),(b),(c),GMP_RNDN);}
+#define PLUS(a,b,c) { CHC3(a,b,c) mpfr_add((a),(b),(c),GMP_RNDN);}
 #define LEQ(a,b) (mpfr_cmp((a),(b))<=0)
 #define LLL(a,b) (mpfr_cmp((a),(b))<0)
 #define EQ(a,b) (mpfr_cmp((a),(b))==0)
 #define GEQ(a,b) (mpfr_cmp((a),(b))>=0)
 #define GGG(a,b) (mpfr_cmp((a),(b))>0)
-#define NEQ(a,b) mpfr_cmp((a),(b))
+#define NEQ(a,b) (mpfr_cmp((a),(b)))
+
 
 static RL_INLINE FLOAT IFloat2Float(INTERNAL_FLOAT *f)
 {
+/*@@@*/ /*mpfr_fprintf(stderr,"%RE\n",*f);*/
 return mpfr_get_d(*f,GMP_RNDN);
 }/*IFloat2Float*/
 
@@ -105,170 +136,130 @@ rt_triadaddr_t *rta=rt->operands;
    for(;rto<rtoStop;rto++,rta++){
       switch(*rto){
          case ROP_CPY2_P :
-//            *(rta->aP.secondOperand)=*(rta->aP.firstOperand);
             CPY(*(rta->aP.secondOperand),*(rta->aP.firstOperand));
             /*no break*/
          case ROP_CPY_P :
-//               *(rta->aP.result) = *(rta->aP.firstOperand);
             CPY(*(rta->aP.result),*(rta->aP.firstOperand));
             break;
          case ROP_CPY2_F :
             CPY(*(rta->aF.secondOperand),*(rta->aF.firstOperand));
-//            *(rta->aF.secondOperand)=*(rta->aF.firstOperand);
             /*no break*/
          case ROP_CPY_F :
                CPY(rta->aF.result,*(rta->aF.firstOperand));
-//               rta->aF.result = *(rta->aF.firstOperand);
             break;
          /*:CPY*/
          /*LOG:*/
          case ROP_LOG_P:
             LOG(*(rta->aP.result),*(rta->aP.firstOperand));
-//            *(rta->aP.result) = log(*(rta->aP.firstOperand));
             break;
          case ROP_LOG_F:
             LOG(rta->aF.result,*(rta->aF.firstOperand));
-//            rta->aF.result = log(*(rta->aF.firstOperand));
             break;
          /*:LOG*/
          /*NEG:*/
          case ROP_NEG_P :
             NEG(*(rta->aP.result),*(rta->aP.firstOperand));
-//            *(rta->aP.result) = -*(rta->aP.firstOperand);
             break;
          case ROP_NEG_F :
             NEG(rta->aF.result,*(rta->aF.firstOperand));
-//            rta->aF.result = - *(rta->aF.firstOperand);
             break;
          /*:NEG*/
          /*INV:*/
          case ROP_INV_P :
             INV(*(rta->aP.result),*(rta->aP.firstOperand));
-//            *(rta->aP.result) = 1.0 / *(rta->aP.firstOperand);
             break;
          case ROP_INV_F :
             INV(rta->aF.result,*(rta->aF.firstOperand));
-//            rta->aF.result = 1.0 / *(rta->aF.firstOperand);
             break;
          /*:INV*/
          /*POW:*/
          case ROP_POW_P :
             POW(*(rta->aP.result),*(rta->aP.firstOperand),*(rta->aP.secondOperand));
-//            *(rta->aP.result) = pow(*(rta->aP.firstOperand),*(rta->aP.secondOperand));
             break;
          case ROP_POW_F :
             POW(rta->aF.result,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
-//            rta->aF.result = pow(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
             break;
          /*:POW*/
          /*IPOW:*/
          /*Integer power, a special case, the second argument is used just as it is:*/
          case ROP_IPOW_P:
             IPOW(*(rta->aIP.result),*(rta->aIP.firstOperand),rta->aIP.secondOperand);
-//            *(rta->aIP.result) = ipow(*(rta->aIP.firstOperand),rta->aIP.secondOperand);
             break;
          case ROP_IPOW_F :
             IPOW(rta->aIF.result,*(rta->aIF.firstOperand),rta->aIF.secondOperand);
-//            rta->aIF.result = ipow(*(rta->aIF.firstOperand),rta->aIF.secondOperand);
             break;
          /*:IPOW*/
          /*IPOW2:*/
          /*Integer power 2*/
          case ROP_IPOW2_P:
             MUL(*(rta->aP.result),*(rta->aP.firstOperand),*(rta->aP.firstOperand));
-//            *(rta->aP.result) = *(rta->aP.firstOperand) *  *(rta->aP.firstOperand);
             break;
          case ROP_IPOW2_F :
             MUL(rta->aF.result,*(rta->aF.firstOperand),*(rta->aF.firstOperand));
-//            rta->aF.result = *(rta->aF.firstOperand) *  *(rta->aF.firstOperand);
             break;
          /*:IPOW2*/
          /*Integer power 3*/
          case ROP_IPOW3_P:
             POW3(*(rta->aP.result),*(rta->aP.firstOperand));
-//            *(rta->aP.result) = *(rta->aP.firstOperand) *
-//                                  *(rta->aP.firstOperand) * *(rta->aP.firstOperand);
             break;
          case ROP_IPOW3_F:
             POW3(rta->aF.result,*(rta->aF.firstOperand));
-//            rta->aF.result = *(rta->aF.firstOperand) *  
-//                                  *(rta->aF.firstOperand) * *(rta->aF.firstOperand);
             break;
          /*:IPOW3*/
          /*Integer power 4*/
          case ROP_IPOW4_P:
             POW4(*(rta->aP.result),*(rta->aP.firstOperand));
-//            a=*(rta->aP.firstOperand) * *(rta->aP.firstOperand);
-//            *(rta->aP.result) = a*a;
             break;
          case ROP_IPOW4_F:
             POW4(rta->aF.result,*(rta->aF.firstOperand));
-//            a=*(rta->aF.firstOperand) * *(rta->aF.firstOperand);
-//            rta->aF.result = a*a;
             break;
          /*:IPOW4*/
          /*Integer power 5*/
          case ROP_IPOW5_P:
             POW5(*(rta->aP.result),*(rta->aP.firstOperand));
-//            a=*(rta->aP.firstOperand) * *(rta->aP.firstOperand);
-//            *(rta->aP.result) = a * a * *(rta->aP.firstOperand);
             break;
          case ROP_IPOW5_F:
             POW5(rta->aF.result,*(rta->aF.firstOperand));
-//            a=*(rta->aF.firstOperand) * *(rta->aP.firstOperand);
-//            rta->aF.result = a * a * *(rta->aF.firstOperand);
             break;
          /*:IPOW5*/
          /*Integer power 6*/
          case ROP_IPOW6_F:
            POW6(rta->aF.result,*(rta->aF.firstOperand));
-//           a=*(rta->aF.firstOperand) * *(rta->aF.firstOperand);
-//           rta->aF.result = a*a*a;
             break;
          case ROP_IPOW6_P:
            POW6(*(rta->aP.result),*(rta->aP.firstOperand));
-//           a=*(rta->aP.firstOperand) * *(rta->aP.firstOperand);
-//           *(rta->aP.result) = a*a*a;
             break;
          /*:IPOW6*/
          /*MINUS:*/
          case ROP_MINUS_P :
             MINUS(*(rta->aP.result),*(rta->aP.firstOperand),*(rta->aP.secondOperand));
-//            *(rta->aP.result) = *(rta->aP.firstOperand)-*(rta->aP.secondOperand);
             break;
          case ROP_MINUS_F :
             MINUS(rta->aF.result,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
-//            rta->aF.result = *(rta->aF.firstOperand)-*(rta->aF.secondOperand);
             break;
          /*:MINUS*/
          /*DIV:*/
          case ROP_DIV_P :
             DIV(*(rta->aP.result),*(rta->aP.firstOperand),*(rta->aP.secondOperand));
-//            *(rta->aP.result) = *(rta->aP.firstOperand) / *(rta->aP.secondOperand);
             break;
          case ROP_DIV_F :
             DIV(rta->aF.result,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
-//            rta->aF.result = *(rta->aF.firstOperand) / *(rta->aF.secondOperand);
             break;
          /*:DIV*/
          /*PLUS:*/
          case ROP_PLUS_P :
             PLUS(*(rta->aP.result),*(rta->aP.firstOperand),*(rta->aP.secondOperand));
-//            *(rta->aP.result) = *(rta->aP.firstOperand)+*(rta->aP.secondOperand);
             break;
          case ROP_PLUS_F :
             PLUS(rta->aF.result,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
-//            rta->aF.result = *(rta->aF.firstOperand)+*(rta->aF.secondOperand);
             break;
          /*:PLUS*/
          /*MUL:*/
          case ROP_MUL_P :
             MUL(*(rta->aP.result),*(rta->aP.firstOperand),*(rta->aP.secondOperand));
-//            *(rta->aP.result) = *(rta->aP.firstOperand) * *(rta->aP.secondOperand);
             break;
          case ROP_MUL_F :
             MUL(rta->aF.result,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
-//            rta->aF.result = *(rta->aF.firstOperand) * *(rta->aF.secondOperand);
             break;
         /*:MUL*/
         /*JMP:*/
@@ -279,48 +270,49 @@ rt_triadaddr_t *rta=rt->operands;
          /*:JMP*/
          /*LEQ:*/
          case ROP_LEQ:
+            CHC2(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
             if( LEQ(*(rta->aF.firstOperand), *(rta->aF.secondOperand)) ){
-//            if( *(rta->aP.firstOperand) <= *(rta->aP.secondOperand) ){
                rto++;rta++;
             }
             break;
          /*:LEQ*/
          /*L:*/
          case ROP_L:
+            CHC2(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
             if( LLL(*(rta->aF.firstOperand),*(rta->aF.secondOperand)) ){
-//            if( *(rta->aP.firstOperand) < *(rta->aP.secondOperand) ){
                rto++;rta++;
             }
             break;
          /*:L*/
          /*EQ:*/
          case ROP_EQ:
+            CHC2(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
             if( EQ(*(rta->aF.firstOperand),*(rta->aF.secondOperand)) ){
-//            if( *(rta->aP.firstOperand) == *(rta->aP.secondOperand) ){
                rto++;rta++;
             }
             break;
          /*:EQ*/
          /*GEQ:*/
          case ROP_GEQ:
+            CHC2(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
             if( GEQ(*(rta->aF.firstOperand),*(rta->aF.secondOperand)) ){
-//            if( *(rta->aP.firstOperand) >= *(rta->aP.secondOperand) ){
                rto++;rta++;
             }
             break;
          /*:GEQ*/
          /*G:*/
          case ROP_G:
+            CHC2(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
+
             if( GGG(*(rta->aF.firstOperand),*(rta->aF.secondOperand)) ){
-//            if( *(rta->aP.firstOperand) > *(rta->aP.secondOperand) ){
                rto++;rta++;
             }
             break;
          /*:G*/
          /*NEQ:*/
          case ROP_NEQ:
+            CHC2(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
             if( NEQ(*(rta->aF.firstOperand),*(rta->aF.secondOperand)) ){
-//            if( *(rta->aP.firstOperand) != *(rta->aP.secondOperand) ){
                rto++;rta++;
             }
             break;
@@ -332,131 +324,93 @@ rt_triadaddr_t *rta=rt->operands;
       case ROP_CPY2_P :
       case ROP_CPY_P :
          return IFloat2Float(rta->aP.firstOperand);
-//         return *(rta->aP.firstOperand);
       case ROP_CPY2_F :
       case ROP_CPY_F :
          return IFloat2Float(rta->aF.firstOperand);
-//         return *(rta->aF.firstOperand);
       case ROP_LOG_P:
          LOG(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         return log(*(rta->aP.firstOperand));
       case ROP_LOG_F:
          LOG(*a,*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         return log(*(rta->aF.firstOperand));
       case ROP_NEG_P :
          NEG(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         return -*(rta->aP.firstOperand);
       case ROP_NEG_F :
          NEG(*a,*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         return - *(rta->aF.firstOperand);
       case ROP_INV_P :
          INV(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         return 1.0 / *(rta->aP.firstOperand);
       case ROP_INV_F :
          INV(*a,*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         return 1.0 / *(rta->aF.firstOperand);
       case ROP_POW_P :
          POW(*a,*(rta->aP.firstOperand),*(rta->aP.secondOperand));
          return IFloat2Float(a);
-//         return pow(*(rta->aP.firstOperand),*(rta->aP.secondOperand));
       case ROP_POW_F :
          POW(*a,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
          return IFloat2Float(a);
-//         return  pow(*(rta->aF.firstOperand),*(rta->aF.secondOperand));
       case ROP_IPOW_P :
          IPOW(*a,*(rta->aIP.firstOperand),rta->aIP.secondOperand);
          return IFloat2Float(a);
-//         return ipow(*(rta->aIP.firstOperand),rta->aIP.secondOperand);
       case ROP_IPOW_F :
          IPOW(*a,*(rta->aIF.firstOperand),rta->aIF.secondOperand);
          return IFloat2Float(a);
-//         return ipow(*(rta->aIF.firstOperand),rta->aIF.secondOperand);
       case ROP_IPOW2_P:
          MUL(*a,*(rta->aP.firstOperand),*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         return  *(rta->aP.firstOperand) *  *(rta->aP.firstOperand);
       case ROP_IPOW2_F :
          MUL(*a,*(rta->aF.firstOperand),*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         return *(rta->aF.firstOperand) *  *(rta->aF.firstOperand);
       case ROP_IPOW3_P:
          POW3(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         return *(rta->aP.firstOperand) *  
-//                *(rta->aP.firstOperand) * *(rta->aP.firstOperand);
       case ROP_IPOW3_F:
          POW3(*a, *(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         return *(rta->aF.firstOperand) *  
-//                *(rta->aF.firstOperand) * *(rta->aF.firstOperand);
       case ROP_IPOW4_P:
          POW4(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         a=*(rta->aP.firstOperand) * *(rta->aP.firstOperand);
-//         return a*a;
       case ROP_IPOW4_F:
          POW4(*a,*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         a=*(rta->aF.firstOperand) * *(rta->aF.firstOperand);
-//         return a*a;
       case ROP_IPOW5_P:
          POW5(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//         a=*(rta->aP.firstOperand) * *(rta->aP.firstOperand);
-//         return a * a * *(rta->aP.firstOperand);
       case ROP_IPOW5_F:
          POW6(*a,*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         a=*(rta->aF.firstOperand) * *(rta->aP.firstOperand);
-//         return a * a * *(rta->aF.firstOperand);
       case ROP_IPOW6_F:
          POW6(*a,*(rta->aF.firstOperand));
          return IFloat2Float(a);
-//         a=*(rta->aF.firstOperand) * *(rta->aF.firstOperand);
-//         return a*a*a;
       case ROP_IPOW6_P:
         POW6(*a,*(rta->aP.firstOperand));
          return IFloat2Float(a);
-//        a=*(rta->aP.firstOperand) * *(rta->aP.firstOperand);
-//        return a*a*a;
       case ROP_MINUS_P :
          MINUS(*a,*(rta->aP.firstOperand),*(rta->aP.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aP.firstOperand)-*(rta->aP.secondOperand);
       case ROP_MINUS_F :
          MINUS(*a,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aF.firstOperand)-*(rta->aF.secondOperand);
       case ROP_DIV_P :
          DIV(*a,*(rta->aP.firstOperand),*(rta->aP.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aP.firstOperand) / *(rta->aP.secondOperand);
       case ROP_DIV_F :
          DIV(*a,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aF.firstOperand) / *(rta->aF.secondOperand);
       case ROP_PLUS_P :
          PLUS(*a,*(rta->aP.firstOperand),*(rta->aP.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aP.firstOperand)+*(rta->aP.secondOperand);
       case ROP_PLUS_F :
          PLUS(*a,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aF.firstOperand)+*(rta->aF.secondOperand);
       case ROP_MUL_P :
          MUL(*a,*(rta->aP.firstOperand),*(rta->aP.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aP.firstOperand) * *(rta->aP.secondOperand);
       case ROP_MUL_F :
          MUL(*a,*(rta->aF.firstOperand),*(rta->aF.secondOperand));
          return IFloat2Float(a);
-//         return *(rta->aF.firstOperand) * *(rta->aF.secondOperand);
    }/*switch(*rto)*/
    
    /*An error!*/
@@ -482,9 +436,8 @@ FLOAT a;
          /*:CPY*/
          /*LOG:*/
          case ROP_LOG_F:
-
-            if(*(rta->aFN.firstOperand) <= 1.0E-10l )
-               rta->aFN.result =-23.0258509299405l;
+            if(*(rta->aFN.firstOperand) <= 1.0E-100l )
+               rta->aFN.result = -230.258509299405l;
             else
                rta->aFN.result = log(*(rta->aFN.firstOperand));
 
@@ -617,12 +570,10 @@ FLOAT a;
       case ROP_CPY_F :
          return *(rta->aFN.firstOperand);
       case ROP_LOG_F:
-
-            if(*(rta->aFN.firstOperand) <= 1.0E-10l )
-               return -23.0258509299405l;
+            if(*(rta->aFN.firstOperand) <= 1.0E-100l )
+               return -230.258509299405l;
             else
                return log(*(rta->aFN.firstOperand));
-//         return log(*(rta->aFN.firstOperand));
       case ROP_NEG_F :
          return - *(rta->aFN.firstOperand);
       case ROP_INV_F :
@@ -667,7 +618,6 @@ static RL_INLINE int isArithmeticNative(FLOAT *x,scan_t *theScan)
 int i;
    l_prod=1.0;
    if(theScan->maxX[0]>0){
-      l_prod=1.0;
       for(i=1;i<theScan->nx; i++){
          if(theScan->maxX[i]>0) l_prod*=ipow(x[i],theScan->maxX[i]);
       }
@@ -680,95 +630,177 @@ int i;
 
 static RL_INLINE void createTruncatedX(FLOAT *x,scan_t *theScan)
 {
-FLOAT prod, ep=g_mpmin/10.0;
+FLOAT prod, mpsmallX=g_mpsmallX/10.0l,ep=ABS_MONOM_MIN/10.0l;
 int i,n=0;
 
+   if(mpsmallX < ABS_MONOM_MIN)
+      mpsmallX = ABS_MONOM_MIN;
+
    for (i=1;i<theScan->nx;i++)
-      if(x[i]<g_mpsmallX)
-         theScan->nativeX[i]=(g_mpsmallX-x[i])/2.0;
+      if(x[i]<mpsmallX)
+         theScan->nativeX[i]=(mpsmallX-x[i])/2.0;
       else
-         theScan->nativeX[i]=0.0;
+         theScan->nativeX[i]=0.0l;
 
    do{
       n++;
       prod=1.0;
       for(i=1;i<theScan->nx; i++)
          prod*=ipow(x[i]+theScan->nativeX[i],theScan->maxX[i]);
-      if(prod < g_mpmin)
+      if(prod < ABS_MONOM_MIN)
          for(i=1;i<theScan->nx; i++)
-            theScan->nativeX[i]+= theScan->nativeX[i]/2.0;
+            theScan->nativeX[i]+= theScan->nativeX[i]/2.0l;
       else
          for(i=1;i<theScan->nx; i++)
-            theScan->nativeX[i]-= theScan->nativeX[i]/2.0;
+            theScan->nativeX[i]-= theScan->nativeX[i]/2.0l;
       if(n==128)
          break;
-   }while( (prod<g_mpmin)||(prod-g_mpmin > ep) );
+   }while( (prod<ABS_MONOM_MIN)||(prod-ABS_MONOM_MIN > ep) );
 
    for(i=1;i<theScan->nx; i++){
       FLOAT tmp=x[i]+theScan->nativeX[i];
       float2IFloat(theScan->x+i,&tmp);
    }
-#if 0
-/*@@@*/
-fprintf(stderr,"g_mpmin=%.15lf g_mpsmallX=%.15lf ",g_mpmin,g_mpsmallX);
-for(i=1;i<theScan->nx; i++){
-      FLOAT tmp=x[i]+theScan->nativeX[i];
-      fprintf(stderr,"x[%d]=%.15lf rez[%d]=%.15lf ;",i,x[i],i,tmp);
-}
-fprintf(stderr,"\ncount=%d\n",n);
-#endif
+   l_prod=prod;
 }/*createTruncatedX*/
 
+static RL_INLINE void resetConstants(scan_t *theScan)
+{
+   int i,j;
+   for(j=i=0; i <theScan->fNativeLine->fill; i++){
+      char *str=(char*) (theScan->newConstantsPool.pool + theScan->constStrings->buf[i]);
+#if ARITHMETIC == MPFR
+      mpfr_set_str(theScan->fline->buf[j++],str,10,GMP_RNDN);
 #endif
+      if(theScan->constStrings->buf[i+1] == -1){
+         /*Store also */
+         /*fline->buf[1] is 1, fline->buf[fline->fill-1] is 'val', we
+           store 1/val into fline->buf[fline->fill]:*/
+#if ARITHMETIC == MPFR
+         mpfr_div(theScan->fline->buf[j],
+               theScan->fline->buf[1],
+               theScan->fline->buf[j-1],GMP_RNDN);
+         j++;
+#endif
+         i++;/*Skip next "-1" in theScan->constStrings*/
+      }/*if(theScan->constStrings->buf[i+1] == -1)*/
+   }/*for(i=0; i <theScan->fNativeline->fill; i++)*/
+}/*resetConstants*/
+
+static RL_INLINE int resetPrecision(scan_t *theScan)
+{
+int i;
+   mpfr_set_default_prec(g_default_precision);
+   for(i=theScan->allMPvariables->fill-1; i>=0; i--)
+      mpfr_prec_round( *((mpfr_t *)(theScan->allMPvariables->buf[i])),g_default_precision,GMP_RNDN);
+   resetConstants(theScan);
+   return 0;
+}/*resetPrecision*/
+
+static RL_INLINE int intlog2(FLOAT x){return ceil(log(x)*1.44269504088896l);}
+
 
 FLOAT runExpr(FLOAT *x,scan_t *theScan)
 {
 FLOAT res;
-#ifdef MIXED_ARITHMETIC
-  int useNativeArithmetic;
-#endif
+int i;
+int useNativeArithmetic;
+static int l_default_precision_mem=0;;
    x--;/*The patch, for historical reasons the rest of the function 
          assumes that the array indices are started from 1, not 0*/
-#ifdef MIXED_ARITHMETIC
    useNativeArithmetic=isArithmeticNative(x,theScan);
-#endif
+   /*copy x to the scratch:*/
+   if(useNativeArithmetic)
+      memcpy(theScan->nativeX+1,x+1,sizeof(FLOAT)*(theScan->nx - 1));
+   else
+   {
+      if( l_prod < ABS_MONOM_MIN)
+         createTruncatedX(x,theScan);
+         /*now l_prod is re-calculated*/
+
+      if(l_prod>=g_mpmin){
+         if(l_default_precision_mem){
+            /*Restore the default precision*/
+            g_default_precision=l_default_precision_mem;
+            l_default_precision_mem=0;
+            resetPrecision(theScan);
+         }
+      }/*if(l_prod>=g_mpmin)*/
+      else
+      {
+         int newPrec=intlog2(1.0l/l_prod)+g_mpPrecisionShift;
+         if(l_default_precision_mem){
+            if(g_default_precision<newPrec){
+               g_default_precision=newPrec;
+               resetPrecision(theScan);
+            }
+         }/*if(l_default_precision_mem)*/
+         else{
+            l_default_precision_mem=g_default_precision;
+            g_default_precision=newPrec;
+            resetPrecision(theScan);
+         }/*if(l_default_precision_mem)...else*/
+      }/*if(l_prod>=g_mpmin)...else*/
+   }/*if(useNativeArithmetic)...else*/
+
+   for(i=1;i<theScan->nx;i++)
+       float2IFloat(theScan->x+i,x+i);
+
+   if(theScan->wasCut){
+      if(theScan->ep[0] > 0.0l){/*"Global" cut*/
+         for(i=1;i<theScan->nx; i++)if(x[i]<theScan->ep[0]){
+            if(useNativeArithmetic)
+               theScan->nativeX[i]=theScan->ep[0];
+            /*else -- all cuts for MP mode are done*/
+
+         }/*for(i=1;i<theScan->nx; i++)if(x[i]<theScan->ep[0])*/
+      }else /*"local" cut, imopse it individually for each x:*/
+         for(i=1;i<theScan->nx; i++)if(theScan->ep_i[i]){
+            if(x[i]<theScan->ep[i]){
+               if(useNativeArithmetic)
+                  theScan->nativeX[i]=theScan->ep[i];
+               /*else -- all cuts for MP mode are done*/
+            }
+         }/*for(i=1;i<theScan->nx; i++)if(theScan->ep_i[i])*/
+   }/*if(theScan->wasCut)*/
+
+      if(useNativeArithmetic){
+         res=runlineNative(&theScan->rtTriad);
+      }
+      else{
+         INTERNAL_FLOAT a;
+         initIFvar(&a);
+         l_one=theScan->fline->buf+1;
+         res=runline(&theScan->rtTriad,&a);
+      }
+   return res;
+}/*runExpr*/
+
+#else
+/*No MIXED_ARITHMETIC*/
+FLOAT runExpr(FLOAT *x,scan_t *theScan)
+{
+FLOAT res;
+int i;
+   x--;/*The patch, for historical reasons the rest of the function 
+         assumes that the array indices are started from 1, not 0*/
    /*copy x to the scratch:*/
 #if ARITHMETIC == NATIVE
    memcpy(theScan->x+1,x+1,sizeof(FLOAT)*(theScan->nx - 1));
 #else
-#ifdef MIXED_ARITHMETIC
-   if(useNativeArithmetic)
-      memcpy(theScan->nativeX+1,x+1,sizeof(FLOAT)*(theScan->nx - 1));
-   else
-#endif
    {/*block*/
-      int i;
-#ifdef MIXED_ARITHMETIC
-      if(l_prod>=g_mpmin)
-#endif
          for(i=1;i<theScan->nx;i++)
             float2IFloat(theScan->x+i,x+i);
-#ifdef MIXED_ARITHMETIC
-      else
-         createTruncatedX(x,theScan);
-#endif
    }/*block*/
 #endif
 
    if(theScan->wasCut){
-      int i;
       if(theScan->ep[0] > 0.0){/*"Global" cut*/
          for(i=1;i<theScan->nx; i++)if(x[i]<theScan->ep[0]){
 #if ARITHMETIC == NATIVE
             theScan->x[i]=theScan->ep[0];
 #else
-#ifdef MIXED_ARITHMETIC
-            if(useNativeArithmetic)
-               theScan->nativeX[i]=theScan->ep[0];
-            /*else -- all cuts for MP mode are done*/
-#else
             float2IFloat(theScan->x+i,theScan->ep);
-#endif
 #endif
          }/*for(i=1;i<theScan->nx; i++)if(x[i]<theScan->ep[0])*/
       }else /*"local" cut, imopse it individually for each x:*/
@@ -777,24 +809,13 @@ FLOAT res;
 #if ARITHMETIC == NATIVE
                theScan->x[i]=theScan->ep[i];
 #else
-#ifdef MIXED_ARITHMETIC
-               if(useNativeArithmetic)
-                  theScan->nativeX[i]=theScan->ep[i];
-               /*else -- all cuts for MP mode are done*/
-#else
                float2IFloat(theScan->x+i,theScan->ep+i);
-#endif
 #endif
             }
          }/*for(i=1;i<theScan->nx; i++)if(theScan->ep_i[i])*/
    }/*if(theScan->wasCut)*/
 
-#ifdef MIXED_ARITHMETIC
-      if(useNativeArithmetic)
-         res=runlineNative(&theScan->rtTriad);
-      else
-#endif   
-   {/*block*/      
+   {/*block*/
       INTERNAL_FLOAT a;
 #if ARITHMETIC != NATIVE
       initIFvar(&a);
@@ -805,14 +826,8 @@ FLOAT res;
       clearIFvar(&a);
 #endif
    }/*block*/
-#if 0
-/*@@@*/
-{
-int i;
-   for(i=1;i<theScan->nx; i++)
-      fprintf(stderr,"%.12lf ",x[i]);
-fprintf(stderr,"res=%.12lf\n",res);
-}
-#endif
+
    return res;
 }/*runExpr*/
+
+#endif
