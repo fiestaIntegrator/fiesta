@@ -653,7 +653,9 @@ int i,n=0;
       else
          for(i=1;i<theScan->nx; i++)
             theScan->nativeX[i]-= theScan->nativeX[i]/2.0l;
-      if(n==128)
+      if((n>=128)&& (prod>=ABS_MONOM_MIN))
+         break;
+      if(n==256)
          break;
    }while( (prod<ABS_MONOM_MIN)||(prod-ABS_MONOM_MIN > ep) );
 
@@ -730,7 +732,7 @@ static int l_default_precision_mem=0;;
       }/*if(l_prod>=g_mpmin)*/
       else
       {
-         int newPrec=intlog2(1.0l/l_prod)+g_mpPrecisionShift;
+         int newPrec=-intlog2(l_prod)+g_mpPrecisionShift;
          if(l_default_precision_mem){
             if(g_default_precision<newPrec){
                g_default_precision=newPrec;
