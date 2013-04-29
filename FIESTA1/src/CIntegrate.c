@@ -46,18 +46,54 @@ invokes the interpreter runExpr(), see the file "runline.c".
 #include "scanner.h"
 #include "runline.h"
 
-#include "vegas.h"
+#include "integrators.h"
 
 #define CUT_MULTIPLIER 10.0
 
-extern void Integrate(char* s);
+integrator_t g_integratorArray[MAX_INTEGRATOR];
+char *g_integratorNamesArray[MAX_INTEGRATOR];
+int g_currentIntegrator=0;
+int g_topIntegrator=0;
+
+scan_t *g_fscan=NULL;
 
 #ifdef STATISTICS_OUT
 extern long int allT;
 extern long int newT;
 #endif
 
-int setpoints(int i1,int i2,int i11,int i22);
+void getCurrentIntegratorParameters(void)
+{
+   /*Att! Very dangerous! No overfolow checkup!*/
+   char res[2048];
+   if(getAllPars(g_currentIntegrator, res))
+      MLPutString(stdlink,"Fault");
+   else
+      MLPutString(stdlink,res);
+}/*getCurrentIntegratorParameters*/
+
+void setCurrentIntegratorParameter(char *name, char *value)
+{
+   int ret=setPar(g_currentIntegrator,name,value);
+   if(ret==0)
+      MLPutSymbol(stdlink, "True");
+   else
+      MLPutSymbol(stdlink, "False");
+}/*setCurrentIntegratorParameter*/
+
+void setIntegrator(char *name)
+{
+int i;
+   /*If te integrator array is already initialized, the function does nothing:*/
+   initIntegrators();/*fixme: check the returned code!*/
+   for(i=0;i<g_topIntegrator;i++)
+      if( strcmp(name,g_integratorNamesArray[i])==0 ){
+         g_currentIntegrator=i;
+         MLPutSymbol(stdlink, "True");
+         return;
+      }
+   MLPutSymbol(stdlink, "False");
+}/*setIntegrator*/
 
 void PutErrorMessage(char* function,char* message) {
 			fprintf(stderr, "%s: %s\n",function,message);
@@ -70,30 +106,7 @@ void PutErrorMessage(char* function,char* message) {
 			MLPutReal(stdlink,0.0);
 }
 
-static scan_t *fscan;
-
 static multiLine_t ml;
-
-
-FLOAT theIntegrand( FLOAT *x, FLOAT *wgt)
-{
-   return runExpr(--x,fscan);
-}/*theIntegrand*/
-
-static int numberOfCalls1 = 10000;
-static int numberOfIterations1 = 5;
-static int numberOfCalls2 = 100000;
-static int numberOfIterations2 = 15;
-
-int setpoints(int i1,int i2,int i11,int i22)
-{
-   numberOfCalls1=i1;
-   numberOfIterations1=i2;
-   numberOfCalls2=i11;
-   numberOfIterations2=i22;
-
-   return 0;
-}/*setpoints*/
 
 FLOAT *xCuts=NULL;
 int nCuts=0;
@@ -146,6 +159,7 @@ int doAddString (char* s)
 
 void AddString (char* s)
 {
+
    if(doAddString(s))
       MLPutSymbol(stdlink, "False");
    else
@@ -155,19 +169,19 @@ void AddString (char* s)
 
 void Integrate(char* s) {
 int i;
+result_t results;
 
    if( (s!=NULL)&&( *s != '\0' ) )
       if(doAddString(s))
          return;
-   
-   fscan=newScannerMultiStr(&ml);
+   g_fscan=newScannerMultiStr(&ml);
 
-   if(fscan==NULL){
+   if(g_fscan==NULL){
       PutErrorMessage("CIntegrate","Can't initialize scanner");
       return;
    }
 
-   if(masterScan(fscan))
+   if(masterScan(g_fscan))
       return ;
    
 #ifdef STATISTICS_OUT
@@ -176,59 +190,53 @@ int i;
 
    if(wasCut){
       if(xCuts[0]>0.0){/*"Global cut*/
-         *(fscan->ep=malloc(sizeof(FLOAT)))=xCuts[0];
-         fscan->wasCut=1;
+         *(g_fscan->ep=malloc(sizeof(FLOAT)))=xCuts[0];
+         g_fscan->wasCut=1;
       }else{/*"Local" cut, 
          individually for each x:*/
-         fscan->wasCut=0;
-         for(i=1; (i<nCuts) && (i<fscan->nx);i++)
+         g_fscan->wasCut=0;
+         for(i=1; (i<nCuts) && (i<g_fscan->nx);i++)
             if( xCuts[i]>0.0)
-               ( fscan->wasCut)++;
-         if(fscan->wasCut){
-            fscan->ep=calloc(fscan->nx,sizeof(FLOAT));
-            fscan->ep_i=calloc(fscan->nx,sizeof(int));
-            fscan->ep[0]=xCuts[0];
-            for(i=1; (i<nCuts) && (i<fscan->nx);i++)
+               ( g_fscan->wasCut)++;
+         if(g_fscan->wasCut){
+            g_fscan->ep=calloc(g_fscan->nx,sizeof(FLOAT));
+            g_fscan->ep_i=calloc(g_fscan->nx,sizeof(int));
+            g_fscan->ep[0]=xCuts[0];
+            for(i=1; (i<nCuts) && (i<g_fscan->nx);i++)
                if(xCuts[i]>0.0){
-                  fscan->ep_i[i]=1;
-                  fscan->ep[i]=xCuts[i];
+                  g_fscan->ep_i[i]=1;
+                  g_fscan->ep[i]=xCuts[i];
                }/*if(xCuts[i]>0.0)*/
-         }/*if(fscan->wasCut)*/
+         }/*if(g_fscan->wasCut)*/
       }/*else*/
    }/*if(wasCut)*/
-   /*Now in fscan->rtTriade is the translated expression*/
-   {/*Block*/
-     double acc=1.e-5;
-     int dim=fscan->nx-1, 
-         ncall = numberOfCalls1,
-         itmx = numberOfIterations1, 
-         nprn = 1,
-         doof=0;
+   /*Now in g_fscan->rtTriade is the translated expression*/
 
-         VEGAS(theIntegrand,&acc,&dim,&ncall,&itmx,&nprn,&doof);
-         if(numberOfCalls2>0){
-            ncall = numberOfCalls2;
-            itmx = numberOfIterations2;
-            VEGAS1(theIntegrand,&acc,&dim,&ncall,&itmx,&nprn,&doof);
-         }/*if(numberOfCalls2>0)*/
-   }/*Block*/
+   /*If te integrator array is already initialized, the function does nothing:*/
+   initIntegrators();/*fixme: check the returned code!*/
 
-   destroyScanner(fscan);
-
-   //RESULT.s1;
+   g_integratorArray[g_currentIntegrator](&results);
+   destroyScanner(g_fscan);
 	MLPutFunction(stdlink,"List",2);
-	MLPutReal(stdlink,RESULT.s1);
-	MLPutReal(stdlink,RESULT.s2);
+	MLPutReal(stdlink,results.s1);
+	MLPutReal(stdlink,results.s2);
 }/*Integrate*/
  
 void ClearString (void)
 {
+
   destroyMultiLine(&ml);
   MLPutSymbol(stdlink, "True");
 }/*ClearString*/
 
 int main(int argc, char *argv[])
 {
+/*
+volatile FILE *zzz=NULL;
+while(zzz == NULL){
+   sleep(1);
+}
+*/
 	return MLMain(argc, argv);
 
 }

@@ -324,6 +324,8 @@ rt_triadaddr_t *rta=rt->operands;
 
 FLOAT runExpr(FLOAT *x,scan_t *theScan)
 {
+   x--;/*The patch, for historical reasons the rest of the function 
+         assumes that the array indices are started from 1, not 0*/
    /*copy x to the scratch:*/
    memcpy(theScan->x+1,x+1,sizeof(FLOAT)*(theScan->nx - 1));
    

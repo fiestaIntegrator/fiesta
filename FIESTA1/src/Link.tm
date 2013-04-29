@@ -39,6 +39,30 @@
 :ReturnType:    Manual
 :End:
 
+:Begin:
+:Function:      setIntegrator
+:Pattern:       SetIntegrator[s_String]
+:Arguments:     {s}
+:ArgumentTypes: {String}
+:ReturnType:    Manual
+:End:
+
+:Begin:
+:Function:      setCurrentIntegratorParameter
+:Pattern:       SetIntegratorParameter[name_String,value_String]
+:Arguments:     {name,value}
+:ArgumentTypes: {String,String}
+:ReturnType:    Manual
+:End:
+
+:Begin:
+:Function:      getCurrentIntegratorParameters
+:Pattern:       GetIntegratorParameters[]
+:Arguments:     {}
+:ArgumentTypes: {}
+:ReturnType:    Manual
+:End:
+
 
 :Evaluate:      CIntegrate::usage = "CIntegrate[string] performs an external integration"
 :Evaluate:      CIntegrate::failed = "`1`"

@@ -1,0 +1,33 @@
+
+Version 1.2.0: follow the install instruction.
+The Mathematica part almost does not require installation.
+The CIntegrate binaries are provided for (version 1.2.0):
+
+- statically linked 64-bit version compiled by gcc and g77 on x86-64 Linux
+  platform
+
+- statically linked 34-bit version compiled by gcc and g77 on x86-32 Linux
+  platform
+
+- Win32 exe file compiled under Cygwin with gcc and g77; the Cygwin dll is
+-included into the package (along with the dll's for QLink built under
+-Microsoft Visual Studio)
+---------------------------------------------------------------
+Version 1.1.0: download the mathematica file FIESTA_1.1.0.m and use it
+together with the same package (instead of FIESTA_1.0.0.m).
+
+-----------------------------------------------------------------
+Version 1.0.0: download the package and follow the INSTALL instruction.
+The Mathematica part almost does not require installation.
+The CIntegrate binaries are provided for (version 1.0.0):
+
+- statically linked 64-bit version compiled by icc and ifort on x86-64 Linux
+  platform
+
+- statically linked 34-bit version compiled by icc and ifort on x86-32 Linux
+  platform
+
+- Win32 exe file compiled with Microsoft Visual C++ and Intel Fortran (dll
+  files included)
+
+ 

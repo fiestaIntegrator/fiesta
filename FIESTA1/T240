@@ -1,0 +1,9 @@
+#!/bin/bash
+#$ -j y
+#$ -pe multithreaded 8
+cd $TMP
+echo ID: $JOB_ID
+echo HOST: $HOSTNAME
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/users/guest/asmirnov/lib
+export PATH=$PATH:/export/local/bin
+/export/local/bin/math70 < $SGE_O_WORKDIR/$JOB_NAME.m

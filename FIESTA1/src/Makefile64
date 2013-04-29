@@ -1,0 +1,104 @@
+
+############# MathLink related paths and settings start: ####################
+#### Specify here the fulll path to the Mathematica MathLink Developer Kit:
+MLINKDIR = /export/local/Wolfram/Mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit/
+
+#### Specify the system SYS and the library name MLIB. 
+### For 64-bit Linux on x86 platform:
+SYS = Linux-x86-64
+##Note, in Mathematica 6.0 the name for Linux-x86-64 was changed from ML to ML64i3:
+MLIB = -lML64i3
+
+### For 32-bit Linux on x86 platform:
+#SYS = Linux
+#MLIB = -lML
+############# MathLink related paths and settings end. ####################
+
+############# CUBA related paths and settings start: ####################
+CUBAINCLUDEDIR = /x1/asmirnov/Cuba64
+CUBAILIBDIR = /x1/asmirnov/Cuba64
+
+# You must specify either icc, or gcc.
+############# icc related paths and settings start: ####################
+#CC = icc
+#FORT = ifort
+#LIBS = -pthread  -Wl,-Bstatic ${MLIB} -lifport -lifcore -ldl -lifport -lrt -Wl,-Bdynamic
+#LIBDIRS = -L/usr/local/lib  -L/export/local/intel/fce/9.0/lib -L${CUBAILIBDIR}
+#LFLAGS = -i-static
+############# icc related paths and settings end ####################
+############# gcc related paths and settings start: ####################
+# You must specify either g77, or gfortran, with the corresponding LIBS.
+CC=gcc
+FORT=g77
+### LIBS for g77:
+LIBS = -pthread -Wl,-Bstatic ${MLIB} -lstdc++ -lg2c -lm -lrt -Wl,-Bdynamic
+#FORT=gfortran
+### LIBS for gfortran:
+#LIBS = -pthread -Wl,-Bstatic ${MLIB} -lgfortranbegin -lgfortran -lm -lrt -Wl,-Bdynamic
+LIBDIRS = -L/usr/local/lib -L${CUBAILIBDIR}
+
+############# gcc related paths and settings end ####################
+
+CFLAGS= -O3 -Wall
+#CFLAGS= -g
+
+###### Do not change anything below this line.
+
+MAKEDEPENDNAME = makedepend -w20 -Y -f Makefile -s
+
+CADDSDIR = ${MLINKDIR}/${SYS}/CompilerAdditions
+INCDIR = -I${CADDSDIR} -I${CUBAINCLUDEDIR}
+MLIBDIR = ${CADDSDIR}
+MPREP = ${CADDSDIR}/mprep
+
+OBJ = vegasf.o collectstr.o scanner.o  runline.o Link.o hash.o integrators.o CIntegrate.o
+
+CIntegrate$ : $(OBJ)
+	$(CC) ${LFLAGS} $(OBJ) -L${MLIBDIR} ${LIBDIRS} -lcuba ${LIBS} -o $@
+
+Link.c : Link.tm
+	${MPREP} -o Link.c Link.tm
+
+vegasf.o: vegasf.f
+	$(FORT) -c vegasf.f
+
+.c.o:
+	$(CC) $(CFLAGS) ${INCDIR} -c $<
+
+dep: depend
+
+depend:
+	$(MAKEDEPENDNAME) '# ******** DEPENDENCIES: *********' $(OBJ:.o=.c)
+
+# ******** DEPENDENCIES: *********
+
+collectstr.o: collectstr.h
+collectstr.o: comdef.h
+scanner.o: scanner.h
+scanner.o: comdef.h
+scanner.o: collectstr.h
+scanner.o: hash.h
+scanner.o: queue.h
+runline.o: scanner.h
+runline.o: comdef.h
+runline.o: collectstr.h
+runline.o: hash.h
+runline.o: runline.h
+hash.o: comdef.h
+hash.o: scanner.h
+hash.o: collectstr.h
+hash.o: hash.h
+integrators.o: integrators.h
+integrators.o: scanner.h
+integrators.o: comdef.h
+integrators.o: collectstr.h
+integrators.o: hash.h
+integrators.o: runline.h
+integrators.o: vegasf.h
+CIntegrate.o: scanner.h
+CIntegrate.o: comdef.h
+CIntegrate.o: collectstr.h
+CIntegrate.o: hash.h
+CIntegrate.o: runline.h
+CIntegrate.o: integrators.h
+CIntegrate.o: vegasf.h
