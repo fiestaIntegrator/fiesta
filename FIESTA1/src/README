@@ -1,0 +1,35 @@
+This directory contains the sources of the program CIntegrate which is
+the C-part of FIESTA. Here is a brief description of the function of
+each file:
+
+CIntegrate.c -- the main file for the CIntegrate program.The program
+is not supposed to start directly, it is launched from Mathematica via
+the Mathlink protocol. See comments in the beginning of the file.
+
+Link.tm -- the MathLink template for each external function. These
+functions are defined in the file CIntegrate.c.
+
+comdef.h -- global definitions.
+
+scanner.c and scanner.h -- the translator of an incoming expression into
+triples and quadruples, see comments in the beginning of the file scanner.c.
+
+runline.c and runline.h -- the interpretor of the array of quadruples,
+see comments in the beginning of the file runline.c.
+
+vegas.f -- the Fortran VEGAS routine, close to the original Lepage code.
+vegas.h -- definition of C API to VEGAS.
+
+collectstr.c and collectstr.h -- several types of re-allocatable
+arrays, see comments in the beginning of the file collectstr.h.
+
+hash.c and hash.h -- the special CIntegrate-specific hash table, see
+comments in the beginning of the file hash.h.
+
+queue.h -- Inline implementation of the generic queues, see comments
+in the beginning of the file.
+
+mman.h -- simple Windows stubs for mmap(), munmap(), getpagesize() and off_t.
+
+Makefile -- the Unix makefile.
+CIntegrate.mak -- the Windows makefile.

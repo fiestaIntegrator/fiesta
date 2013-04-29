@@ -1,0 +1,20 @@
+In order to install FIESTA on Linux x86-64 using pre-compiled
+binaries:
+
+1. Put the  file ./QLink64 named as QLink to some path, e.g.
+cp ./QLink64 /home/user/QLink/QLink
+2. Put the  file ./CIntegrate64 named as CIntegrate to some path, e.g.
+cp ./CIntegrate64 /home/user/FIESTA/CIntegrate
+3. Install the Mathematica part of FIESTA:
+copy the file FIESTA_1.0.0.m to some place and edit
+the default paths QLinkPath, CIntegratePath and DataPath
+in the this file, e.g.:
+QLinkPath="/home/user/QLink/QLink";
+CIntegratePath="/home/user/FIESTA/CIntegrate";
+DataPath="/tmp/user/temp";
+Here QLinkPath is a  path to the executable QLink file,
+CIntegratePath is a  path to the executable CIntegrate
+file, and DataPath is a path to the database directory.
+Note, the program will create a big IO traffic to the directory
+DataPath so it is better to put this directory on some fast
+local disk.

@@ -1,0 +1,19 @@
+There are several ways to install FIESTA:
+
+For Linux x86 using pre-compiled binaries (CIntegrate32 and QLink32) see the file INSTALL.Linux32
+For Linux x86-64 using pre-compiled binaries (CIntegrate64 and QLink64) see the file INSTALL.Linux64
+For generic Unix instalation see the file INSTALL.Unix
+For Windows x86 using pre-compiled binaries (CIntegrate.exe and QLink.exe) see the file INSTALL.Windows
+For generic Windows installation see the file INSTALL.Win64
+
+Then run the test program, ./test.m:
+
+math < test.m
+
+The answer is expected to be
+                                             -6
+                  1.33333   -0.732405 + 5. 10   pm46
+Out[3]= -4.3865 + ------- + ------------------------ + 0.000013 pm47
+                      2                ep
+                    ep
+
