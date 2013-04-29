@@ -1,5 +1,8 @@
 
-Version 1.2.0: follow the install instruction.
+Version 1.2.1 (small bug fix): use the file FIESTA_1.2.1.m together with 
+the 1.2.0 package
+-------------------------------------------------------------
+Version 1.2.0: follow the install instruction in install.txt.
 The Mathematica part almost does not require installation.
 The CIntegrate binaries are provided for (version 1.2.0):
 
