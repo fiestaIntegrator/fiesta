@@ -1,0 +1,15 @@
+Version 2.3:
+
+comes with a new package of sources and binaries
+
+- fixed a bug for non-integer indices
+- fixed warnings for Mathematica 7 and 8
+- new option for square resolution: AdvancedSquares3 (works better on threshhold)
+- new non-obligatory argument for SDEvaluateDirect to provide a list of delta-functions
+- better debugging with IntegrationDebug
+- new sector decomposition strategies STRATEGY_KU0, STRATEGY_KU, STRATEGY_KU2 (Kaneko, Ueda). 
+KU2 is slowest, but less sectors. KU0 is fastest, but more sectors
+- new boolean option PolesMultiplicity, if true, forces the SDAnalyze mode to provide poles multiplicities as well
+- bug fix - intrepolation near the origin did not actually work as expected,
+resulting in integration errors in some specific situations
+- bug fix - integration crashed when one of the exponents exceeded 13312 

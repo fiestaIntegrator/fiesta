@@ -657,10 +657,11 @@ int i,n=0;
          break;
    }while( (prod<ABS_MONOM_MIN)||(prod-ABS_MONOM_MIN > ep) );
 
-   for(i=1;i<theScan->nx; i++){
-      FLOAT tmp=x[i]+theScan->nativeX[i];
-      float2IFloat(theScan->x+i,&tmp);
-   }
+   for(i=1;i<theScan->nx; i++)
+    theScan->nativeX[i] += x[i];
+//      FLOAT tmp=x[i]+theScan->nativeX[i];
+//      float2IFloat(theScan->x+i,&tmp);
+  // }
    l_prod=prod;
 }/*createTruncatedX*/
 
@@ -714,7 +715,8 @@ static int l_default_precision_mem=0;;
       memcpy(theScan->nativeX+1,x+1,sizeof(FLOAT)*(theScan->nx - 1));
    else
    {
-      if( l_prod < ABS_MONOM_MIN)
+	 int wasTrancated = (l_prod < ABS_MONOM_MIN);
+	       if(wasTrancated)
          createTruncatedX(x,theScan);
          /*now l_prod is re-calculated*/
 
@@ -741,10 +743,21 @@ static int l_default_precision_mem=0;;
             resetPrecision(theScan);
          }/*if(l_default_precision_mem)...else*/
       }/*if(l_prod>=g_mpmin)...else*/
+
+	  if (wasTrancated){
+	/*initialize theScan->x from interpolated x*/
+	    for(i=1;i<theScan->nx;i++)
+		float2IFloat(theScan->x+i,theScan->nativeX+i);
+      } else {
+	for(i=1;i<theScan->nx;i++)
+        float2IFloat(theScan->x+i,x+i);
+      };
+
+
+
+
    }/*if(useNativeArithmetic)...else*/
 
-   for(i=1;i<theScan->nx;i++)
-       float2IFloat(theScan->x+i,x+i);
 
    if(theScan->wasCut){
       if(theScan->ep[0] > 0.0l){/*"Global" cut*/

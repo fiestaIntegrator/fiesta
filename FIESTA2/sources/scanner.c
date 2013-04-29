@@ -76,6 +76,8 @@ runExpr(), file runline.c
 #include <errno.h>
 #include <string.h>
 
+#define NO_MATH 1
+
 #ifndef NO_MATH
 #include <mathlink.h>
 #endif
@@ -1602,13 +1604,11 @@ rt_triadaddr_t *rtaN;
 }/*buildRtTriad*/
 
 /*Sets triad fields lastUsing and refCounter*/
-static SC_INLINE void markTriad(SC_INT triad,SC_INT op1,SC_INT op2,scan_t *theScan)
+static SC_INLINE void markTriad(int op,SC_INT triad,SC_INT op1,SC_INT op2,scan_t *theScan)
 {
    /*What about functions?:*/
    while( (op1< - theScan->nx)&&(op1 >= -theScan->nx-theScan->nf) )
       op1=theScan->f[-op1-theScan->nx];
-   while( (op2< - theScan->nx)&&(op2 >= -theScan->nx-theScan->nf) )
-      op2=theScan->f[-op2-theScan->nx];
 
    if(op1>0){
       if(theScan->ctTriad.lastUsing[op1]<triad){
@@ -1616,6 +1616,15 @@ static SC_INLINE void markTriad(SC_INT triad,SC_INT op1,SC_INT op2,scan_t *theSc
          (theScan->ctTriad.refCounter[op1])++;
       }
    }/*if(op1>0)*/
+
+   /*Integer power is a special case, do not interprete op2 as a triple:*/
+   if(OP_IPOW==op)
+      return;
+
+   /*What about functions?:*/
+   while( (op2< - theScan->nx)&&(op2 >= -theScan->nx-theScan->nf) )
+      op2=theScan->f[-op2-theScan->nx];
+
    if((op1!=op2)&&(op2>0)){
       if(theScan->ctTriad.lastUsing[op2]<triad){
          theScan->ctTriad.lastUsing[op2]=triad;
@@ -1641,8 +1650,8 @@ static SC_INLINE SC_INT addOpNoHashNoStack(int op,SC_INT triadType,scan_t *theSc
    }
    /*reuse triadType:*/
    triadType=sCtTriad(op,triadType,op1,op2,&theScan->ctTriad);
-   if(op!=OP_JMP) 
-      markTriad(triadType,op1,op2,theScan);
+   if(op!=OP_JMP)
+      markTriad(op, triadType,op1,op2,theScan);
    return triadType;
 }/*addOpNoHashNoStack*/
 
@@ -1652,7 +1661,7 @@ SC_INT op=popInt(theScan->pstack),res;
    /*-1 is a non-optimisible triad type:*/
    res=sCtTriad(OP_CPY,-1,op,op,&theScan->ctTriad);
    addInt(theScan->pstack,res);
-   markTriad(res,op,op,theScan);
+   markTriad(OP_CPY,res,op,op,theScan);
    return 0;
 }/*addCpyOp*/
       
@@ -1720,7 +1729,7 @@ static SC_INLINE int addOp( int op, scan_t *theScan)
 #endif /*#ifdef WITH_OPTIMIZATION*/
       triad=tandsCtTriad(op,0,op1,op2,&theScan->ctTriad);
    addInt(theScan->pstack,triad);
-   markTriad(triad,op1,op2,theScan);
+   markTriad(op,triad,op1,op2,theScan);
    return 0;
 }/*addOp*/
 

@@ -1,17 +1,17 @@
 ############# MathLink related paths and settings begin: ####################
 #### Specify here the fulll path to the Mathematica MathLink Developer Kit:
 #MLINKDIR = /home/MDK
-#MLINKDIR = /export/local/Wolfram/Mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
-MLINKDIR = /export/pc/mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
+MLINKDIR = /export/local/Wolfram/Mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
+#MLINKDIR = /export/pc/mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
 
 #### Specify the system SYS and the library name MLIB. 
 ### For 64-bit Linux on x86 platform:
-#SYS = Linux-x86-64
-#MLIB = -lML64i3
+SYS = Linux-x86-64
+MLIB = -lML64i3
 
 ### For 32-bit Linux on x86 platform:
-SYS = Linux
-MLIB = -lML32i3
+#SYS = Linux
+#MLIB = -lML32i3
 
 ### For 32-bit Windows on x86 platform:
 #SYS = Windows
@@ -21,8 +21,8 @@ MLIB = -lML32i3
 ############# CUBA related paths and settings begin: ####################
 #Set this two varables to full paths to "cuba.h" and to the CUBAL library
 #file. If you have CUBA installed in your system, leave this variables empty:
-CUBAINCLUDEDIR = -I/x1/asmirnov/Cuba32
-CUBALIBDIR = -L/x1/asmirnov/Cuba32
+CUBAINCLUDEDIR = -I/x1/asmirnov/Cuba64
+CUBALIBDIR = -L/x1/asmirnov/Cuba64
 
 #CUBAINCLUDEDIR = -I/cygdrive/d/Cuba/
 #CUBALIBDIR = -L/cygdrive/d/Cuba/
@@ -31,8 +31,8 @@ CUBALIBDIR = -L/x1/asmirnov/Cuba32
 ############# MPFR related paths and settings begin: ####################
 #Set this two varables to full paths to "cuba.h" and to the mpfr library
 #file. If you have mpfr installed in your system, leave this variables empty:
-MPFRINCLUDEDIR = -I/x1/asmirnov/mpfr32
-MPFRLIBDIR = -L/x1/asmirnov/mpfr32/.libs
+MPFRINCLUDEDIR = -I/x1/asmirnov/mpfr64/src
+MPFRLIBDIR = -L/x1/asmirnov/mpfr64/src/.libs
 # ATTENTION! Here we assume that the GMP library is installed on the system.
 # If you have non-standard GMP installation, edit the file  ./mpfr/Makefile and 
 # add -I<path_to_gmp_includes> to  INCDIR and -L<path_to_gmp_libraries> to LIBDIRS
